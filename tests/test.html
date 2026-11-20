@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Geometry tests</title>
+<pre id="out">running…</pre>
+<script type="module">
+import * as G from '../js/geometry.js';
+
+const lines = [];
+let fails = 0;
+const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
+function check(name, cond, detail = '') {
+  if (!cond) fails++;
+  lines.push(`${cond ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
+}
+const fmt = (r) => `miter ${r.miter.toFixed(2)} bevel ${r.bevel.toFixed(2)} keep ${r.keep} fence ${r.placement.fenceEdge}`;
+
+// 1. Published crown table values, 90° corner, flat (compound) cut.
+for (const [spring, m, b] of [[38, 31.62, 33.86], [45, 35.26, 30.0], [52, 38.24, 25.81]]) {
+  const r = G.crown({ cornerDeg: 90, corner: 'inside', springDeg: spring, tilt: 'left' }).flat.left;
+  check(`crown ${spring}° spring, 90° corner`, near(Math.abs(r.miter), m, 0.1) && near(Math.abs(r.bevel), b, 0.1), fmt(r));
+}
+
+// 2. Closed-form formulas for any corner: miter = atan(sinS / tan(W/2)), bevel = asin(cosS·cos(W/2)).
+for (const W of [60, 80, 100, 120, 135, 150]) for (const S of [30, 38, 45, 52]) {
+  const r = G.crown({ cornerDeg: W, corner: 'inside', springDeg: S, tilt: 'dual' }).flat.right;
+  const m = G.deg(Math.atan(Math.sin(G.rad(S)) / Math.tan(G.rad(W / 2))));
+  const b = G.deg(Math.asin(Math.cos(G.rad(S)) * Math.cos(G.rad(W / 2))));
+  check(`crown W=${W} S=${S} formula`, near(Math.abs(r.miter), m, 1e-6) && near(Math.abs(r.bevel), b, 1e-6), fmt(r));
+}
+
+// 3. The classic chart for a LEFT-tilting saw, crown flat, back on the table:
+//    inside L: top to fence, miter R, keep L | inside R: bottom to fence, miter L, keep L
+//    outside L: bottom to fence, miter L, keep R | outside R: top to fence, miter R, keep R
+const chart = [
+  ['inside', 'left', 'upper', 1, 'left'],
+  ['inside', 'right', 'lower', -1, 'left'],
+  ['outside', 'left', 'lower', -1, 'right'],
+  ['outside', 'right', 'upper', 1, 'right'],
+];
+for (const [corner, side, fence, mSign, keep] of chart) {
+  const r = G.crown({ cornerDeg: 90, corner, springDeg: 38, tilt: 'left' }).flat[side];
+  check(`flat chart ${corner} ${side}`, r.placement.fenceEdge === fence && Math.sign(r.miter) === mSign && r.bevel > 0 && r.keep === keep, fmt(r));
+}
+
+// 4. Nested chart (upside down against the fence):
+//    inside L: miter R, keep R | inside R: miter L, keep L | outside L: miter L, keep R | outside R: miter R, keep L
+const nchart = [
+  ['inside', 'left', 1, 'right'], ['inside', 'right', -1, 'left'],
+  ['outside', 'left', -1, 'right'], ['outside', 'right', 1, 'left'],
+];
+for (const [corner, side, mSign, keep] of nchart) {
+  const r = G.crown({ cornerDeg: 90, corner, springDeg: 38 }).nested[side];
+  check(`nested chart ${corner} ${side}`, near(Math.abs(r.miter), 45) && r.bevel === 0 && Math.sign(r.miter) === mSign && r.keep === keep, fmt(r));
+}
+// Nested miter = 90 - W/2 regardless of spring.
+for (const W of [80, 100, 135]) {
+  const r = G.crown({ cornerDeg: W, corner: 'inside', springDeg: 45 }).nested.left;
+  check(`nested W=${W}`, near(Math.abs(r.miter), 90 - W / 2, 1e-6) && r.bevel === 0, fmt(r));
+}
+
+// 5. Right-tilt-only saw must produce negative (right) bevels; dual keeps the top edge on the fence.
+for (const corner of ['inside', 'outside']) for (const side of ['left', 'right']) {
+  const r = G.crown({ cornerDeg: 90, corner, springDeg: 38, tilt: 'right' }).flat[side];
+  check(`right-tilt ${corner} ${side}`, r.bevel < 0, fmt(r));
+  const d = G.crown({ cornerDeg: 90, corner, springDeg: 38, tilt: 'dual' }).flat[side];
+  check(`dual ${corner} ${side} top to fence`, d.placement.fenceEdge === 'upper', fmt(d));
+}
+
+// 6. Hopper / splayed box: 4 sides, 30° tilt → published miter 26.57, bevel 37.76.
+{
+  const r = G.compoundBoard({ cornerDeg: G.polygonCorner(4), corner: 'outside', tiltDeg: 30, tilt: 'left' }).flat.left;
+  check('hopper 4 sides 30°', near(Math.abs(r.miter), 26.57) && near(Math.abs(r.bevel), 37.76), fmt(r));
+  // 6 sides, 20° tilt → miter 10.42? closed form: miter = atan(sinT·tan(180/n))... check against formula
+  const n = 6, T = 20;
+  const e = G.compoundBoard({ cornerDeg: G.polygonCorner(n), corner: 'outside', tiltDeg: T, tilt: 'dual' }).flat.left;
+  const half = G.rad(180 / n);
+  const m = G.deg(Math.atan(Math.sin(G.rad(T)) * Math.tan(half)));
+  const b = G.deg(Math.asin(Math.cos(G.rad(T)) * Math.sin(half)));
+  check('hopper 6 sides 20° formula', near(Math.abs(e.miter), m, 1e-6) && near(Math.abs(e.bevel), b, 1e-6), fmt(e));
+}
+
+// 7. Baseboard (tilt 0) on edge: miter = 90 - W/2, no bevel. Flat: bevel = 90 - W/2, no miter.
+for (const W of [80, 90, 135]) {
+  const r = G.compoundBoard({ cornerDeg: W, corner: 'inside', tiltDeg: 0 });
+  check(`baseboard on edge W=${W}`, near(Math.abs(r.edge.left.miter), 90 - W / 2, 1e-6) && near(r.edge.left.bevel, 0, 1e-9), fmt(r.edge.left));
+  check(`baseboard flat W=${W}`, near(Math.abs(r.flat.left.bevel), 90 - W / 2, 1e-6) && near(r.flat.left.miter, 0, 1e-9), fmt(r.flat.left));
+}
+// Baseboard on edge, inside corner, show face toward you: left piece miter so the back is longer.
+{
+  const r = G.compoundBoard({ cornerDeg: 90, corner: 'inside', tiltDeg: 0 }).edge;
+  lines.push(`info baseboard inside L: ${fmt(r.left)} | R: ${fmt(r.right)}`);
+}
+
+// 8. Example from the brief: 80° inside corner, 52/38 crown.
+{
+  const r = G.crown({ cornerDeg: 80, corner: 'inside', springDeg: 38, tilt: 'left' });
+  lines.push(`info 80° inside, 38° spring flat L: ${fmt(r.flat.left)}`);
+  lines.push(`info 80° inside, 38° spring flat R: ${fmt(r.flat.right)}`);
+  lines.push(`info 80° inside nested L: ${fmt(r.nested.left)}`);
+}
+
+lines.unshift(fails ? `${fails} FAILED` : 'ALL PASSED');
+document.getElementById('out').textContent = lines.join('\n');
+window.__result = { fails, lines };
+</script>

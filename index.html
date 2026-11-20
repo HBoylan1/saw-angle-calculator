@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Saw Angles</title>
+  <meta name="description" content="Miter and bevel settings for crown, baseboard, compound and frame cuts at any corner angle.">
+  <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Saw Angles">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Saw Angles</h1>
+    <button id="settingsBtn" class="icon-btn" aria-label="Saw settings" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+    </button>
+  </header>
+
+  <section id="settings" class="card settings" hidden>
+    <h2>Your saw</h2>
+    <div class="field">
+      <span class="label">Blade tilts</span>
+      <div class="seg" data-setting="tilt">
+        <button data-v="left">Left only</button>
+        <button data-v="right">Right only</button>
+        <button data-v="dual">Both ways</button>
+      </div>
+    </div>
+    <div class="row2">
+      <label class="field"><span class="label">Max miter</span>
+        <span class="num"><input type="number" inputmode="decimal" data-setting="maxMiter" min="0" max="90" step="1"><i>°</i></span></label>
+      <label class="field"><span class="label">Max bevel</span>
+        <span class="num"><input type="number" inputmode="decimal" data-setting="maxBevel" min="0" max="90" step="1"><i>°</i></span></label>
+    </div>
+    <p class="hint">Results past these limits are flagged, with another way to make the cut.</p>
+  </section>
+
+  <nav class="modes seg" id="modes" aria-label="Cut type">
+    <button data-v="crown">Crown</button>
+    <button data-v="base">Baseboard</button>
+    <button data-v="compound">Compound</button>
+    <button data-v="frame">Frame</button>
+  </nav>
+
+  <main>
+    <section class="card" id="inputs"></section>
+    <section id="results" aria-live="polite"></section>
+  </main>
+
+  <footer class="foot">
+    <span id="version"></span> ·
+    <a href="https://github.com/HBoylan1/saw-angle-calculator/blob/main/CHANGELOG.md">Changes</a>
+    <p class="hint">Always make a test cut on scrap first. Check the corner with an angle finder; walls are rarely exactly 90°.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
