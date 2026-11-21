@@ -99,6 +99,45 @@ for (const W of [80, 90, 135]) {
   lines.push(`info 80° inside nested L: ${fmt(r.nested.left)}`);
 }
 
+// 9. Frames with unequal widths.
+{
+  // Equal widths reduce to 90 - W/2, any corner.
+  for (const W of [60, 90, 120, 135, 270]) {
+    const r = G.frame({ cornerDeg: W, wLeft: 3, wRight: 3 });
+    const want = W < 180 ? 90 - W / 2 : 90 - W / 2; // 270 → -45 (long point on the opening edge)
+    check(`frame equal W=${W}`, near(r.left.cut, want, 1e-6) && near(r.right.cut, want, 1e-6), `${r.left.cut.toFixed(2)} ${r.right.cut.toFixed(2)} ${r.corner}`);
+  }
+  // Known casing case: 4-1/2" head on 3-1/2" legs at 90°: 37.87 / 52.13.
+  const c = G.frame({ cornerDeg: 90, wLeft: 4.5, wRight: 3.5 });
+  check('casing 4.5 / 3.5', near(c.left.cut, 37.87) && near(c.right.cut, 52.13), `${c.left.cut.toFixed(2)} / ${c.right.cut.toFixed(2)}`);
+  // Directions: left piece handle LEFT, keep LEFT; right piece handle RIGHT, keep RIGHT.
+  check('frame directions', c.left.miter < 0 && c.left.keep === 'left' && c.right.miter > 0 && c.right.keep === 'right');
+  // The two cuts always add to 180 - W, and match an independent line intersection.
+  for (const [W, a, b] of [[90, 4.5, 3.5], [60, 2, 5], [135, 1, 4], [150, 4, 1], [100, 3, 3.25], [240, 2, 3]]) {
+    const r = G.frame({ cornerDeg: W, wLeft: a, wRight: b });
+    // Intersect the two outer edge lines directly.
+    const t = G.rad(W);
+    // left outer: y = -a ; right outer: points p = s*(cos t, sin t) + b*(-sin t, cos t)
+    // solve s*sin t + b*cos t = -a
+    const s = (-a - b * Math.cos(t)) / Math.sin(t);
+    const ox = s * Math.cos(t) - b * Math.sin(t), oy = -a;
+    const leftCut = G.deg(Math.atan(-ox / a));
+    // right board: angle between joint and its own square line
+    const ux = Math.cos(t), uy = Math.sin(t); // along right board, away from corner
+    const along = -(ox * ux + oy * uy); // how far O sits back toward the corner along the board
+    const rightCut = G.deg(Math.atan(along / b));
+    const sum = r.left.cut + r.right.cut;
+    check(`frame W=${W} ${a}/${b}`, near(r.left.cut, leftCut, 1e-6) && near(r.right.cut, rightCut, 1e-6) && near(sum, 180 - W, 1e-6),
+      `L ${r.left.cut.toFixed(2)} (${leftCut.toFixed(2)}) R ${r.right.cut.toFixed(2)} (${rightCut.toFixed(2)}) ${r.corner}`);
+  }
+  // Width parsing.
+  const cases = [['3 1/2', 3.5], ['3-1/2', 3.5], ['3.5', 3.5], ['7/8', 0.875], ['89', 89], ['2 5/8"', 2.625], ['abc', NaN], ['1/0', NaN]];
+  for (const [txt, v] of cases) {
+    const p = G.parseWidth(txt);
+    check(`parse "${txt}"`, Number.isNaN(v) ? Number.isNaN(p) : near(p, v, 1e-9), String(p));
+  }
+}
+
 lines.unshift(fails ? `${fails} FAILED` : 'ALL PASSED');
 document.getElementById('out').textContent = lines.join('\n');
 window.__result = { fails, lines };

@@ -129,3 +129,7 @@ h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; t
 
 svg text { font-family: inherit; }
 .sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+.badge { text-align: center; font-weight: 650; margin: 4px 0 6px; }
+.framefig { max-width: 320px; margin: 0 auto 8px; }
+.framefig svg { width: 100%; height: auto; display: block; }
+.num input[type="text"] { font-size: 24px; }

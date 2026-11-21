@@ -11,7 +11,7 @@ A phone calculator for miter saw settings: crown molding, baseboard, compound (t
 | Crown | Crown molding at inside or outside corners | Corner angle, crown angle (from the wall or the ceiling), flat or nested cutting |
 | Baseboard | Square-edged trim standing against the wall | Corner angle, standing or flat on the saw |
 | Compound | Splayed boxes, hoppers, planters, trim tilted off plumb | Number of sides or corner angle, tilt from plumb or level, lean in/out |
-| Frame | Casing, picture frames, anything flat in one plane | Inside angle of the frame corner |
+| Frame | Casing, picture frames, anything flat in one plane, including boards of different widths | Corner angle across the opening (up to 359°), left and right board widths |
 
 For each piece it shows the miter and bevel, which way to swing and tilt, which edge goes against the fence, which side of the blade to keep, and a top-view picture of the cut. Under the gear icon you set whether your blade tilts left, right or both ways, and your saw's maximum miter and bevel; cuts past those limits are flagged, with another way to make them.
 

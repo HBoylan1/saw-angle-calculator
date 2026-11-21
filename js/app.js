@@ -1,5 +1,5 @@
 import * as G from './geometry.js';
-import { roomDiagram, crownSection, tiltSection, sawDiagram } from './diagrams.js';
+import { roomDiagram, crownSection, tiltSection, sawDiagram, frameDiagram } from './diagrams.js';
 import { VERSION } from './version.js';
 
 // ---------------------------------------------------------------------------
@@ -20,6 +20,8 @@ const DEFAULTS = {
   compoundHow: 'flat',
   baseHow: 'edge',
   frameW: 90,
+  frameWL: '3 1/2',
+  frameWR: '3 1/2',
 };
 const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45 };
 
@@ -53,6 +55,11 @@ function numField(key, label, value, { step = 0.5, min = 0, max = 180, unit = '�
       <button class="step" data-step="${step}" data-for="${key}" aria-label="Increase">+</button>
     </div></div>`;
 }
+function widthField(key, label) {
+  return `<label class="field"><span class="label">${label}</span>
+    <span class="num"><input type="text" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false"
+      data-width="${key}" value="${esc(state[key])}"></span></label>`;
+}
 function chips(key, list, current) {
   return `<div class="chips" data-key="${key}">${list
     .map(([v, label]) => `<button class="chip" data-v="${v}" aria-pressed="${Number(v) === Number(current)}">${label}</button>`)
@@ -62,7 +69,7 @@ function chips(key, list, current) {
 // Displayed values can be in a different reference than what's stored.
 const VIEWS = {
   W: { get: () => state.W, set: (v) => (state.W = v), min: 1, max: 179 },
-  frameW: { get: () => state.frameW, set: (v) => (state.frameW = v), min: 1, max: 179 },
+  frameW: { get: () => state.frameW, set: (v) => (state.frameW = v), min: 1, max: 359 },
   spring: {
     get: () => (state.crownRef === 'plumb' ? state.spring : 90 - state.spring),
     set: (v) => (state.spring = state.crownRef === 'plumb' ? v : 90 - v),
@@ -140,9 +147,15 @@ function renderInputs() {
         ${seg('compoundHow', [['flat', 'Flat on table'], ['edge', 'Standing against fence']], state.compoundHow)}</div>`;
   } else {
     html = `
-      ${numField('frameW', 'Inside angle of each frame corner', state.frameW)}
-      ${chips('frameW', [[90, 'Rectangle 90°'], [120, 'Hexagon 120°'], [135, 'Octagon 135°'], [60, 'Triangle 60°']], state.frameW)}
-      <p class="hint">For door and window casing, picture frames, and anything where the boards lie flat in one plane.</p>`;
+      ${numField('frameW', 'Corner angle, measured across the opening', state.frameW, { max: 359 })}
+      ${chips('frameW', [[90, '90°'], [120, '120°'], [135, '135°'], [60, '60°'], [270, '270°']], state.frameW)}
+      <p class="hint">The angle between the two inner edges, on the opening side. A normal frame corner is 90°. A corner that points into the opening (like the inside of an L) is over 180°.</p>
+      <hr class="sep">
+      <div class="row2">
+        ${widthField('frameWL', 'Left board width')}
+        ${widthField('frameWR', 'Right board width')}
+      </div>
+      <p class="hint">Any unit, as long as both match: 3 1/2, 3-1/2, 3.5 or 89. Left and right are as you face the corner from inside the opening.</p>`;
   }
   el.innerHTML = html;
 }
@@ -188,6 +201,12 @@ function placementSteps(r, mode) {
       labels: edgeLabels('nested'),
     };
   }
+  if (p.kind === 'frame') {
+    return {
+      steps: ['Lay the board face up, with its <b>outer edge</b> (the edge away from the opening) against the fence.'],
+      labels: { fence: 'outer edge at fence', front: 'opening edge' },
+    };
+  }
   if (p.kind === 'edge') {
     return {
       steps: ['Stand the board on its bottom edge, back flat against the fence, show face toward you.'],
@@ -213,13 +232,14 @@ function limitWarning(r, alt) {
   return `<div class="warn">This ${over.join(' and ')}.${alt ? ' ' + alt : ''}</div>`;
 }
 
-function pieceCard(side, r, mode, alt) {
+function pieceCard(side, r, mode, alt, where = `${side} wall, facing the corner`) {
   const { steps, labels } = placementSteps(r, mode);
   const keep = `Keep the piece on the <b>${r.keep.toUpperCase()}</b> of the blade.`;
   return `<section class="card piece">
-    <h3>${side === 'left' ? 'Left' : 'Right'} piece <small>${side} wall, facing the corner</small></h3>
+    <h3>${side === 'left' ? 'Left' : 'Right'} piece <small>${where}</small></h3>
     ${bigNumbers(r)}
-    <ol class="steps">${steps.map((s) => `<li>${s}</li>`).join('')}<li>${keep}</li></ol>
+    <ol class="steps">${steps.map((s) => `<li>${s}</li>`).join('')}<li>${keep}</li>${r.longPoint && r.longPoint !== 'none'
+      ? `<li>The long point ends up on the <b>${r.longPoint === 'outer' ? 'outer' : 'opening'}</b> edge.</li>` : ''}</ol>
     <div class="sawfig">${sawDiagram(r, labels)}</div>
     ${limitWarning(r, alt)}
   </section>`;
@@ -231,13 +251,26 @@ function renderResults() {
   const out = [];
   const tilt = settings.tilt;
   if (state.mode === 'frame') {
-    const r = G.frame({ cornerDeg: state.frameW });
-    out.push(`<section class="card piece"><h3>Every piece <small>${fd(state.frameW)}° corners</small></h3>
-      ${bigNumbers({ miter: r.miter, bevel: 0 }, 'left & right ends')}
-      <ol class="steps"><li>Lay each piece face up on the table.</li>
-      <li>Cut one end with the handle swung left ${f1(r.miter)}°, the other end swung right ${f1(r.miter)}°.</li>
-      <li>The long point of each cut is on the outside edge of the frame.</li></ol>
-      ${limitWarning({ miter: r.miter, bevel: 0 }, '')}</section>`);
+    const wL = G.parseWidth(state.frameWL), wR = G.parseWidth(state.frameWR);
+    if (!(wL > 0 && wR > 0)) {
+      $('#results').innerHTML = '<p class="note">Enter both board widths to see the cuts.</p>';
+      return;
+    }
+    const W = state.frameW;
+    if (Math.abs(W - 180) < 0.05) {
+      $('#results').innerHTML = '<p class="note">At 180° the boards run in a straight line: butt them with square cuts.</p>';
+      return;
+    }
+    const r = G.frame({ cornerDeg: W, wLeft: wL, wRight: wR });
+    out.push(`<p class="badge">${r.corner === 'inside' ? 'Inside' : 'Outside'} corner · ${fd(W)}° · left ${esc(state.frameWL)} / right ${esc(state.frameWR)}</p>`);
+    out.push(`<div class="framefig">${frameDiagram(W, wL, wR)}</div>`);
+    const steep = (p) => {
+      const c = 90 - Math.abs(p.miter);
+      return c <= settings.maxMiter ? `Clamp the board to a square block so it sits at 90° to the fence, then cut at ${f1(c)}°.` : '';
+    };
+    out.push(pieceCard('left', r.left, 'frame', steep(r.left), 'left board, seen from the opening'));
+    out.push(pieceCard('right', r.right, 'frame', steep(r.right), 'right board, seen from the opening'));
+    if (wL !== wR) out.push(`<p class="note">The two angles are different because the boards are different widths. Together they add up to ${fd(180 - W)}°, which is 180° minus the corner angle.</p>`);
     $('#results').innerHTML = out.join('');
     return;
   }
@@ -342,6 +375,12 @@ $('#inputs').addEventListener('click', (e) => {
 });
 
 $('#inputs').addEventListener('input', (e) => {
+  const wk = e.target.dataset.width;
+  if (wk) {
+    const v = G.parseWidth(e.target.value);
+    if (v > 0) { state[wk] = e.target.value.trim(); commit(); }
+    return;
+  }
   const key = e.target.dataset.key;
   const view = VIEWS[key];
   if (!view) return;
@@ -351,6 +390,7 @@ $('#inputs').addEventListener('input', (e) => {
   commit();
 });
 $('#inputs').addEventListener('change', (e) => {
+  if (e.target.dataset.width) { e.target.value = state[e.target.dataset.width]; return; }
   const key = e.target.dataset.key;
   if (VIEWS[key]) {
     e.target.value = fd(VIEWS[key].get());

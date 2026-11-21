@@ -51,6 +51,51 @@ export function roomDiagram(corner, W) {
   return out.join('');
 }
 
+/**
+ * Frame corner seen face-on, to scale, with the opening toward the viewer (bottom).
+ * Left board runs off to the left, right board to the right; red line = the joint.
+ */
+export function frameDiagram(W, wL, wR) {
+  const t = rad(W);
+  const u = [Math.cos(t), Math.sin(t)]; // right board direction (left board is +x)
+  const n = [-Math.sin(t), Math.cos(t)]; // right board's outer side
+  const sinW = Math.sin(t);
+  const O = Math.abs(sinW) < 1e-6 ? [0, -wL] : [-(wL * Math.cos(t) + wR) / sinW, -wL];
+  const span = Math.max(wL, wR);
+  const reach = Math.max(Math.hypot(O[0], O[1]), span) + span * 2.2;
+  const left = [[0, 0], [reach, 0], [reach, -wL], O];
+  const right = [[0, 0], O, [reach * u[0] + wR * n[0], reach * u[1] + wR * n[1]], [reach * u[0], reach * u[1]]];
+  // Rotate so the opening's bisector points down the screen.
+  const rot = rad(-90 - W / 2), cr = Math.cos(rot), sr = Math.sin(rot);
+  const tf = ([x, y]) => [x * cr - y * sr, -(x * sr + y * cr)];
+  const all = [...left, ...right].map(tf);
+  const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const VW = 300, VH = 210, pad = 18, bottom = W > 180 ? 52 : 26;
+  const k = Math.min((VW - 2 * pad) / (maxX - minX || 1), (VH - pad - bottom) / (maxY - minY || 1));
+  const ox = (VW - k * (maxX - minX)) / 2 - k * minX, oy = pad - k * minY;
+  const S = (p) => { const q = tf(p); return [ox + k * q[0], oy + k * q[1]]; };
+  const poly = (pts) => 'M' + pts.map((p) => P(...S(p))).join(' L') + ' Z';
+  const out = [`<svg viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Frame corner, ${f1(W)} degrees, left board ${wL}, right board ${wR}, seen from the front">`];
+  out.push(`<path d="${poly(left)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5"/>`);
+  out.push(`<path d="${poly(right)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5" opacity=".8"/>`);
+  const [ix, iy] = S([0, 0]), [px, py] = S(O);
+  out.push(`<line x1="${ix.toFixed(1)}" y1="${iy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="var(--blade)" stroke-width="2.5"/>`);
+  const lm = S([reach * 0.7, -wL / 2]), rm = S([reach * 0.7 * u[0] + wR / 2 * n[0], reach * 0.7 * u[1] + wR / 2 * n[1]]);
+  out.push(`<text x="${lm[0].toFixed(1)}" y="${(lm[1] + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="var(--ink)">L</text>`);
+  out.push(`<text x="${rm[0].toFixed(1)}" y="${(rm[1] + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="var(--ink)">R</text>`);
+  // angle arc in the opening, between the two inner edges
+  const r = 22;
+  const a0 = Math.atan2(S([1, 0])[1] - iy, S([1, 0])[0] - ix) * 180 / Math.PI;
+  let a1 = a0 - W; // screen y is flipped, so counter-clockwise becomes clockwise
+  out.push(`<path d="${arc(ix, iy, r, Math.min(a0, a1), Math.max(a0, a1))}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`);
+  const lx = W > 180 ? ix + r + 6 : ix, ly = W > 180 ? iy + r + 4 : iy + r + 16;
+  out.push(`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${W > 180 ? 'start' : 'middle'}" font-size="12" font-weight="700" fill="var(--ink)">${f1(W)}°</text>`);
+  out.push(`<text x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">opening — you face the corner from here</text>`);
+  out.push('</svg>');
+  return out.join('');
+}
+
 /** Crown in section against wall and ceiling, showing which angle is being entered. */
 export function crownSection(spring, ref) {
   const wx = 18, cy = 12, L = 74;

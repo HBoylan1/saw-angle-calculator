@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.0 — 2026-11-21
+
+- Frame mode handles boards of different widths, such as a wide head casing meeting narrower side casings. Enter the left and right widths in any unit (3 1/2, 3-1/2, 3.5 or 89); each board gets its own miter so the joint lines up from corner to corner.
+- Frame mode now accepts any corner angle up to 359° and labels it as an inside corner (under 180°) or an outside corner (over 180°, pointing into the opening).
+- Frame results now give left and right pieces separately: miter direction, outer edge to the fence, which side to keep, where the long point lands, and a to-scale drawing of the joint.
+- Cuts steeper than your saw's miter limit suggest the complementary cut with the board held square to the fence.
+
 ## v1.0.0 — 2026-11-20
 
 First release.
@@ -15,6 +22,6 @@ First release.
 
 ## Planned
 
-- v1.1: crown on sloped (cathedral) ceilings and crown changing from level to rake.
+- v1.2: crown on sloped (cathedral) ceilings and crown changing from level to rake.
 - Walls out of plumb; uneven corners where the two pieces have different tilts.
 - Saved jobs.

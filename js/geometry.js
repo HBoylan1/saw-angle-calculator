@@ -199,11 +199,62 @@ export function compoundBoard({ cornerDeg, corner, tiltDeg, tilt = 'left' }) {
 }
 
 /**
- * Picture frame / door casing: boards lie in one plane and the corner is in that plane.
- * @param {number} cornerDeg  inside angle of the frame corner (90 for a rectangle)
+ * Picture frame / door casing: boards lie flat in one plane, possibly different widths.
+ *
+ * Seen face-on, the joint must run from the point where the two inner (opening-side)
+ * edges meet, I, to the point where the two outer edges meet, O. Each board's cut angle
+ * is how far that line leans from square across that board:
+ *     tan(m_left)  = (wL·cos W + wR) / (wL·sin W)
+ *     tan(m_right) = (wR·cos W + wL) / (wR·sin W)
+ * and m_left + m_right = 180° − W. Equal widths give the familiar 90° − W/2.
+ *
+ * m > 0: the long point is on the outer edge. m < 0: it is on the opening edge.
+ *
+ * @param {number} cornerDeg  angle between the inner edges, measured across the opening
+ *                            (0–360; under 180 = inside corner, over 180 = outside corner)
+ * @param {number} wLeft, wRight  board widths (any unit, same for both). Left and right
+ *                            are as seen from inside the opening, facing the corner.
+ *
+ * Saw setup for both pieces: face up, outer edge against the fence. Signed miter uses the
+ * same convention as everything else (+ = handle right).
  */
-export function frame({ cornerDeg }) {
-  return { miter: 90 - cornerDeg / 2, bevel: 0 };
+export function frame({ cornerDeg, wLeft = 1, wRight = 1 }) {
+  const W = rad(cornerDeg);
+  const mL = deg(Math.atan2(wLeft * Math.cos(W) + wRight, wLeft * Math.sin(W)));
+  const mR = deg(Math.atan2(wRight * Math.cos(W) + wLeft, wRight * Math.sin(W)));
+  // atan2 keeps the right quadrant when sin W < 0; fold into (-90, 90].
+  const fold = (m) => (m > 90 ? m - 180 : m <= -90 ? m + 180 : m);
+  const left = fold(mL), right = fold(mR);
+  const piece = (m, side) => ({
+    cut: m, // + = long point on the outer edge
+    miter: clean(side === 'left' ? -m : m),
+    bevel: 0,
+    keep: side,
+    longPoint: Math.abs(m) < 1e-9 ? 'none' : m > 0 ? 'outer' : 'opening',
+    placement: { kind: 'frame', fenceEdge: 'outer' },
+  });
+  return {
+    corner: cornerDeg < 180 ? 'inside' : 'outside',
+    left: piece(left, 'left'),
+    right: piece(right, 'right'),
+  };
+}
+
+/** Where the outer edges meet, in the left board's frame (inner edge on +x, outer at y = -wL). */
+export function frameOuterPoint(cornerDeg, wLeft, wRight) {
+  const W = rad(cornerDeg);
+  return [-(wLeft * Math.cos(W) + wRight) / Math.sin(W), -wLeft];
+}
+
+/** Parse a width like "3 1/2", "3-1/2", "3.5", "7/8" or "89". Returns NaN if unreadable. */
+export function parseWidth(text) {
+  const s = String(text).trim().replace(/["”″]|in(ches)?$/i, '').trim();
+  let m = s.match(/^(\d+(?:\.\d+)?)?(?:[\s-]+)?(?:(\d+)\s*\/\s*(\d+))?$/);
+  if (!m || (!m[1] && !m[2])) return NaN;
+  const whole = m[1] ? parseFloat(m[1]) : 0;
+  const frac = m[2] ? parseFloat(m[2]) / parseFloat(m[3]) : 0;
+  if (m[2] && !(parseFloat(m[3]) > 0)) return NaN;
+  return whole + frac;
 }
 
 /** Corner angle of a regular polygon with n sides (a box with n equal sides). */
