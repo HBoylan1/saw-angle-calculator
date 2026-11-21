@@ -96,6 +96,50 @@ export function frameDiagram(W, wL, wR) {
   return out.join('');
 }
 
+/**
+ * Wall seen face-on from the room: two crown runs meeting at a joint in the wall plane.
+ * joint: result of rakeJoint(); slopes in degrees (going away from the joint).
+ */
+export function wallDiagram(joint, leftSlope, rightSlope) {
+  const { bodies, jointLine } = joint;
+  const L = 10, T = 1.6; // run length and crown face height, in arbitrary units
+  const xA = bodies.left, xB = [-bodies.right[0], -bodies.right[1]];
+  const up = (X) => [X[1], -X[0]];
+  const zA = up(xA), zB = up(xB);
+  const s = -T / (jointLine[0] * zA[0] + jointLine[1] * zA[1]);
+  const bottom = [jointLine[0] * s, jointLine[1] * s];
+  const add = (p, q, k = 1) => [p[0] + q[0] * k, p[1] + q[1] * k];
+  const A = [[0, 0], add([0, 0], bodies.left, L), add(add([0, 0], bodies.left, L), zA, -T), bottom];
+  const B = [[0, 0], bottom, add(add([0, 0], bodies.right, L), zB, -T), add([0, 0], bodies.right, L)];
+  const pts = [...A, ...B];
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => -p[1]);
+  const VW = 300, VH = 170, pad = 16, bottomPad = 22;
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys) - 0.6, maxY = Math.max(...ys);
+  const k = Math.min((VW - 2 * pad) / (maxX - minX), (VH - pad - bottomPad) / (maxY - minY));
+  const ox = (VW - k * (maxX - minX)) / 2 - k * minX, oy = pad - k * minY;
+  const S = (p) => [ox + k * p[0], oy - k * p[1]];
+  const poly = (ps) => 'M' + ps.map((p) => P(...S(p))).join(' L') + ' Z';
+  const out = [`<svg viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Wall seen from the room: left run ${f1(leftSlope)} degrees, right run ${f1(rightSlope)} degrees">`];
+  // ceiling line along the top edges
+  const c0 = S(add([0, 0], bodies.left, L)), c1 = S([0, 0]), c2 = S(add([0, 0], bodies.right, L));
+  out.push(`<path d="M${P(...c0)} L${P(...c1)} L${P(...c2)}" fill="none" stroke="var(--muted)" stroke-width="4" stroke-linecap="round"/>`);
+  out.push(`<path d="${poly(A)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5"/>`);
+  out.push(`<path d="${poly(B)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5" opacity=".8"/>`);
+  const [jx, jy] = S([0, 0]), [bx, by] = S(bottom);
+  out.push(`<line x1="${jx.toFixed(1)}" y1="${jy.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="var(--blade)" stroke-width="2.5"/>`);
+  const lab = (body, z, text, slope) => {
+    const p = S(add(add([0, 0], body, L * 0.6), z, -T / 2));
+    const q = S(add(add([0, 0], body, L * 0.6), z, -T - 1.1));
+    return `<text x="${p[0].toFixed(1)}" y="${(p[1] + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="var(--ink)">${text}</text>`
+      + `<text x="${q[0].toFixed(1)}" y="${(q[1] + 4).toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--muted)">${Math.abs(slope) < 0.05 ? 'level' : f1(Math.abs(slope)) + '°'}</text>`;
+  };
+  out.push(lab(bodies.left, zA, 'L', leftSlope));
+  out.push(lab(bodies.right, zB, 'R', rightSlope));
+  out.push(`<text x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">the wall, seen from the room</text>`);
+  out.push('</svg>');
+  return out.join('');
+}
+
 /** Crown in section against wall and ceiling, showing which angle is being entered. */
 export function crownSection(spring, ref) {
   const wx = 18, cy = 12, L = 74;

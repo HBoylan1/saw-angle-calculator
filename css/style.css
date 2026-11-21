@@ -133,3 +133,4 @@ svg text { font-family: inherit; }
 .framefig { max-width: 320px; margin: 0 auto 8px; }
 .framefig svg { width: 100%; height: auto; display: block; }
 .num input[type="text"] { font-size: 24px; }
+.hint + .field { margin-top: 14px; }

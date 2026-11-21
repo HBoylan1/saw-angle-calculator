@@ -138,6 +138,48 @@ for (const W of [80, 90, 135]) {
   }
 }
 
+// 10. Crown on sloped ceilings (joints in the plane of the wall).
+{
+  const S = 38;
+  // Straight run, no slope: square cut.
+  const z = G.crownRake({ leftSlope: 0, rightSlope: 0, springDeg: S, tilt: 'dual' });
+  check('rake straight run = square', near(z.flat.left.miter, 0, 1e-9) && near(z.flat.left.bevel, 0, 1e-9) && near(z.nested.left.bevel, 0, 1e-9), fmt(z.flat.left));
+  for (const P of [10, 22.6, 30, 45]) {
+    // Level to rake: the joint leans P/2 from plumb; nested = pure bevel of P/2.
+    const b = G.crownRake({ leftSlope: 0, rightSlope: P, springDeg: S, tilt: 'dual' });
+    check(`level→rake P=${P} nested`, near(Math.abs(b.nested.left.bevel), P / 2, 1e-6) && near(b.nested.left.miter, 0, 1e-9)
+      && near(Math.abs(b.nested.right.bevel), P / 2, 1e-6), fmt(b.nested.left));
+    // Flat, closed form for a joint tilted phi from square in the wall plane:
+    //   bevel = asin(sin phi · sin S), miter = atan(tan phi · cos S)
+    const phi = G.rad(P / 2), s = G.rad(S);
+    const wantB = G.deg(Math.asin(Math.sin(phi) * Math.sin(s)));
+    const wantM = G.deg(Math.atan(Math.tan(phi) * Math.cos(s)));
+    for (const side of ['left', 'right']) {
+      const r = b.flat[side];
+      check(`level→rake P=${P} flat ${side}`, near(Math.abs(r.bevel), wantB, 1e-6) && near(Math.abs(r.miter), wantM, 1e-6), fmt(r));
+    }
+    // Peak: joint is plumb, each piece is P off square.
+    const pk = G.crownRake({ leftSlope: -P, rightSlope: -P, springDeg: S, tilt: 'dual' });
+    check(`peak P=${P} nested`, near(Math.abs(pk.nested.left.bevel), P, 1e-6) && near(Math.abs(pk.nested.right.bevel), P, 1e-6), fmt(pk.nested.left));
+    const pB = G.deg(Math.asin(Math.sin(G.rad(P)) * Math.sin(s))), pM = G.deg(Math.atan(Math.tan(G.rad(P)) * Math.cos(s)));
+    check(`peak P=${P} flat`, near(Math.abs(pk.flat.left.bevel), pB, 1e-6) && near(Math.abs(pk.flat.left.miter), pM, 1e-6), fmt(pk.flat.left));
+    // Mirror symmetry: the mirrored joint gives the same numbers with sides swapped.
+    const mir = G.crownRake({ leftSlope: P, rightSlope: 0, springDeg: S, tilt: 'dual' });
+    check(`mirror P=${P}`, near(Math.abs(mir.flat.right.miter), Math.abs(b.flat.left.miter), 1e-6)
+      && near(Math.abs(mir.flat.right.bevel), Math.abs(b.flat.left.bevel), 1e-6)
+      && Math.sign(mir.flat.right.miter) === -Math.sign(b.flat.left.miter), `${fmt(mir.flat.right)} vs ${fmt(b.flat.left)}`);
+  }
+  // Single-bevel saws: flat cuts always come out with a usable bevel direction.
+  for (const t of ['left', 'right']) {
+    const r = G.crownRake({ leftSlope: 0, rightSlope: 30, springDeg: S, tilt: t });
+    check(`rake flat ${t}-tilt`, ['left', 'right'].every((sd) => (t === 'left' ? r.flat[sd].bevel > 0 : r.flat[sd].bevel < 0)), `${fmt(r.flat.left)} | ${fmt(r.flat.right)}`);
+  }
+  // Pitch conversion: 7-in-12 = 30.26°.
+  check('7/12 pitch', near(G.riseToDeg(7), 30.26, 0.01) && near(G.degToRise(G.riseToDeg(7)), 7, 1e-9));
+  const ex = G.crownRake({ leftSlope: 0, rightSlope: 30, springDeg: S, tilt: 'left' });
+  lines.push(`info level→rake 30°: flat L ${fmt(ex.flat.left)} | R ${fmt(ex.flat.right)} | nested L ${fmt(ex.nested.left)} | R ${fmt(ex.nested.right)}`);
+}
+
 lines.unshift(fails ? `${fails} FAILED` : 'ALL PASSED');
 document.getElementById('out').textContent = lines.join('\n');
 window.__result = { fails, lines };

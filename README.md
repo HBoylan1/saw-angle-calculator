@@ -8,7 +8,7 @@ A phone calculator for miter saw settings: crown molding, baseboard, compound (t
 
 | Mode | For | You enter |
 |---|---|---|
-| Crown | Crown molding at inside or outside corners | Corner angle, crown angle (from the wall or the ceiling), flat or nested cutting |
+| Crown | Crown molding at inside or outside corners, and on sloped (cathedral, gable, stair) ceilings | Corner angle or ceiling slope (degrees or rise per 12″), crown angle (from the wall or the ceiling), flat or nested cutting |
 | Baseboard | Square-edged trim standing against the wall | Corner angle, standing or flat on the saw |
 | Compound | Splayed boxes, hoppers, planters, trim tilted off plumb | Number of sides or corner angle, tilt from plumb or level, lean in/out |
 | Frame | Casing, picture frames, anything flat in one plane, including boards of different widths | Corner angle across the opening (up to 359°), left and right board widths |

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.0 — 2026-11-21
+
+- Crown on sloped ceilings: a new "Sloped ceiling" option in Crown mode for joints on a gable or stair wall:
+  - **Bottom:** level crown turning up the slope.
+  - **Top:** sloped crown turning level.
+  - **Peak:** two slopes meeting at the ridge.
+  - **Custom:** any two slopes.
+- Enter the slope in degrees or as roof pitch (rise per 12″), and pick which way it rises.
+- Both flat and nested settings. Nested sloped joints are a pure bevel cut, so single-tilt saws get a warning, with the flat settings to use instead, when the bevel goes the wrong way.
+- Wall drawing that shows the two runs and the joint as seen from the room.
+- Tips for the corner where a level wall meets a sloped wall (turn the corner, then a short level return and a Bottom joint), and for walls under a ceiling that slopes away.
+
 ## v1.1.0 — 2026-11-21
 
 - Frame mode handles boards of different widths, such as a wide head casing meeting narrower side casings. Enter the left and right widths in any unit (3 1/2, 3-1/2, 3.5 or 89); each board gets its own miter so the joint lines up from corner to corner.
@@ -22,6 +34,5 @@ First release.
 
 ## Planned
 
-- v1.2: crown on sloped (cathedral) ceilings and crown changing from level to rake.
 - Walls out of plumb; uneven corners where the two pieces have different tilts.
 - Saved jobs.

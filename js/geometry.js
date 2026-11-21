@@ -182,6 +182,69 @@ export function crown({ cornerDeg, corner, springDeg, tilt = 'left' }) {
 }
 
 /**
+ * Crown on a sloped (raked) ceiling: two pieces on the SAME wall that meet at an angle
+ * in the plane of the wall, such as level crown turning up a gable or stair wall, the
+ * top of a rake, or two rakes meeting at a peak.
+ *
+ * Where a ceiling slopes along a wall (a gable or stair wall), the ceiling is still
+ * square to the wall in the crown's own cross-section, so the crown sits at its normal
+ * spring angle and only its run tilts. The joint plane then lies square to the wall and
+ * bisects the two runs, so the profiles match exactly.
+ *
+ * @param {number} o.leftSlope   left piece: degrees above level, going AWAY from the joint
+ * @param {number} o.rightSlope  right piece: same, going away from the joint
+ *                               (left/right as seen facing the wall from the room)
+ */
+export function rakeJoint(leftSlope, rightSlope) {
+  // Wall coordinates seen from the room: u = right, v = up.
+  const a = rad(leftSlope), b = rad(rightSlope);
+  const bA = [-Math.cos(a), Math.sin(a)]; // left piece body, from the joint
+  const bB = [Math.cos(b), Math.sin(b)]; // right piece body, from the joint
+  const mx = bA[0] - bB[0], my = bA[1] - bB[1];
+  const len = Math.hypot(mx, my);
+  if (len < 1e-6) return null; // pieces overlap
+  const m = [mx / len, my / len];
+  // Piece frame: X' along the piece toward the viewer's left, Z' square to the run,
+  // up toward the ceiling, Y' out of the wall.
+  const inFrame = (X) => {
+    const Z = [X[1], -X[0]];
+    return [m[0] * X[0] + m[1] * X[1], 0, m[0] * Z[0] + m[1] * Z[1]];
+  };
+  return {
+    left: inFrame(bA), // joint at the left piece's -X' end
+    right: inFrame([-bB[0], -bB[1]]), // joint at the right piece's +X' end
+    bodies: { left: bA, right: bB },
+    jointLine: [-m[1], m[0]],
+  };
+}
+
+export function crownRake({ leftSlope, rightSlope, springDeg, tilt = 'left' }) {
+  const j = rakeJoint(leftSlope, rightSlope);
+  if (!j) return null;
+  const frame = boardFrame(springDeg);
+  const flat = {
+    left: pickPlacement(j.left, 'left', [flatPlacement(frame, true), flatPlacement(frame, false)], tilt),
+    right: pickPlacement(j.right, 'right', [flatPlacement(frame, true), flatPlacement(frame, false)], tilt),
+  };
+  // Nested crown has only one way to sit on the saw, so the bevel direction is fixed;
+  // `canTilt` tells the app whether this saw can make it.
+  const nested = (n, side) => {
+    const r = solvePlacement(n, side, nestedPlacement());
+    r.canTilt = tilt === 'dual' || Math.abs(r.bevel) < 1e-9 || (tilt === 'left' ? r.bevel > 0 : r.bevel < 0);
+    return r;
+  };
+  return {
+    flat,
+    nested: { left: nested(j.left, 'left'), right: nested(j.right, 'right') },
+    joint: j,
+  };
+}
+
+/** Convert a roof-style pitch (rise per 12 run) to degrees and back. */
+export const riseToDeg = (rise) => deg(Math.atan(rise / 12));
+export const degToRise = (d) => 12 * Math.tan(rad(d));
+
+/**
  * Flat board tilted out of plumb meeting another at a corner
  * (splayed box / hopper sides, tilted trim, baseboard when tilt = 0).
  * @param {number} o.tiltDeg  lean from plumb; positive = top leans out into the room

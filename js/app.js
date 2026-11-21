@@ -1,5 +1,5 @@
 import * as G from './geometry.js';
-import { roomDiagram, crownSection, tiltSection, sawDiagram, frameDiagram } from './diagrams.js';
+import { roomDiagram, crownSection, tiltSection, sawDiagram, frameDiagram, wallDiagram } from './diagrams.js';
 import { VERSION } from './version.js';
 
 // ---------------------------------------------------------------------------
@@ -22,6 +22,13 @@ const DEFAULTS = {
   frameW: 90,
   frameWL: '3 1/2',
   frameWR: '3 1/2',
+  crownWhere: 'corner',
+  rakeJoint: 'bottom',
+  rakeDir: 'right',
+  pitch: 30, // degrees; shown as degrees or rise-per-12
+  pitchUnit: 'deg',
+  slopeL: 0,
+  slopeR: 30,
 };
 const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45 };
 
@@ -80,6 +87,13 @@ const VIEWS = {
     set: (v) => (state.tilt = state.tiltRef === 'plumb' ? v : 90 - v),
     min: 0, max: 80,
   },
+  pitch: {
+    get: () => (state.pitchUnit === 'deg' ? state.pitch : G.degToRise(state.pitch)),
+    set: (v) => (state.pitch = Math.min(80, state.pitchUnit === 'deg' ? v : G.riseToDeg(v))),
+    min: 0, max: 80,
+  },
+  slopeL: { get: () => state.slopeL, set: (v) => (state.slopeL = v), min: -80, max: 80 },
+  slopeR: { get: () => state.slopeR, set: (v) => (state.slopeR = v), min: -80, max: 80 },
   sides: { get: () => state.sides, set: (v) => (state.sides = Math.round(v)), min: 3, max: 24 },
 };
 
@@ -100,12 +114,53 @@ function cornerInputs() {
       : 'Measure across the outside of the corner. A normal square corner reads 90°.'}</p>`;
 }
 
+/** Left/right slopes (degrees, going away from the joint) for the chosen rake joint. */
+function rakeSlopes() {
+  const P = state.pitch, right = state.rakeDir === 'right';
+  switch (state.rakeJoint) {
+    case 'bottom': return right ? [0, P] : [P, 0];
+    case 'top': return right ? [-P, 0] : [0, -P];
+    case 'peak': return [-P, -P];
+    default: return [state.slopeL, state.slopeR];
+  }
+}
+
+function rakeInputs() {
+  const j = state.rakeJoint;
+  const dir = j === 'bottom' || j === 'top'
+    ? `<div class="field"><span class="label">Looking at the wall, the ceiling slopes up to the</span>
+        ${seg('rakeDir', [['left', 'Left'], ['right', 'Right']], state.rakeDir)}</div>` : '';
+  const pitch = j === 'custom'
+    ? `<div class="row2">
+        ${numField('slopeL', 'Left piece slope', state.slopeL, { min: -80, max: 80 })}
+        ${numField('slopeR', 'Right piece slope', state.slopeR, { min: -80, max: 80 })}
+      </div>
+      <p class="hint">Degrees above level, measured going away from the joint. Use a negative number when the piece runs downhill away from the joint. Left and right are as you face the wall.</p>`
+    : `<div class="field"><span class="label">Ceiling slope</span>
+        ${seg('pitchUnit', [['deg', 'Degrees'], ['rise', 'Rise per 12″']], state.pitchUnit)}</div>
+      ${numField('pitch', state.pitchUnit === 'deg' ? 'Slope from level' : 'Rise in 12″ of run', VIEWS.pitch.get(), { step: state.pitchUnit === 'deg' ? 0.5 : 1, max: 80, unit: state.pitchUnit === 'deg' ? '°' : '/12' })}
+      ${state.pitchUnit === 'rise' ? `<p class="hint">${fd(VIEWS.pitch.get())}-in-12 = ${f1(state.pitch)}°</p>` : ''}`;
+  return `
+    <div class="field"><span class="label">Joint</span>
+      ${seg('rakeJoint', [['bottom', 'Bottom'], ['top', 'Top'], ['peak', 'Peak'], ['custom', 'Custom']], j)}</div>
+    <p class="hint">${{
+      bottom: 'Level crown turning up the slope, at the low end of a gable or stair wall.',
+      top: 'Crown coming up the slope and turning level at the high end.',
+      peak: 'Two sloped runs meeting at the ridge of a gable wall.',
+      custom: 'Any two runs on the same wall, each at its own slope.',
+    }[j]}</p>
+    ${dir}
+    ${pitch}`;
+}
+
 function renderInputs() {
   const el = $('#inputs');
   let html = '';
   if (state.mode === 'crown') {
     html = `
-      ${cornerInputs()}
+      <div class="field"><span class="label">Where is the joint?</span>
+        ${seg('crownWhere', [['corner', 'Wall corner'], ['rake', 'Sloped ceiling']], state.crownWhere)}</div>
+      ${state.crownWhere === 'corner' ? cornerInputs() : rakeInputs()}
       <hr class="sep">
       <div class="field"><span class="label">Measure the crown angle from</span>
         ${seg('crownRef', [['plumb', 'Wall (plumb)'], ['level', 'Ceiling (level)']], state.crownRef)}</div>
@@ -275,6 +330,8 @@ function renderResults() {
     return;
   }
 
+  if (state.mode === 'crown' && state.crownWhere === 'rake') return renderRake(out, tilt);
+
   let corner = state.corner, W = state.W;
   if (state.mode === 'compound' && state.compoundBy === 'sides') { corner = 'outside'; W = G.polygonCorner(state.sides); }
 
@@ -307,6 +364,36 @@ function renderResults() {
   if (tilt !== 'dual' && pieces.left.placement.kind === 'flat') {
     out.push(`<p class="note">Your saw only tilts ${tilt}, so the two pieces use opposite edges against the fence. Change this under the gear icon.</p>`);
   }
+  $('#results').innerHTML = out.join('');
+}
+
+function renderRake(out, tilt) {
+  const [sl, sr] = rakeSlopes();
+  const res = G.crownRake({ leftSlope: sl, rightSlope: sr, springDeg: state.spring, tilt });
+  if (!res || Math.abs(Math.abs(sl + sr) - 180) < 10 || Math.abs(sl) > 80 || Math.abs(sr) > 80) {
+    $('#results').innerHTML = '<p class="note">Those two runs overlap. Check the slopes.</p>';
+    return;
+  }
+  out.push(`<div class="framefig">${wallDiagram(res.joint, sl, sr)}</div>`);
+  const nested = state.crownMethod === 'nested';
+  const pieces = nested ? res.nested : res.flat;
+  const other = nested ? res.flat : res.nested;
+  const altFor = (side) => {
+    const o = other[side];
+    if (!fits(o) || (!nested && o.canTilt === false)) return '';
+    return `Try cutting it ${nested ? 'flat' : 'nested'}: miter ${f1(Math.abs(o.miter))}°, bevel ${f1(Math.abs(o.bevel))}°.`;
+  };
+  for (const side of ['left', 'right']) {
+    const r = pieces[side];
+    let card = pieceCard(side, r, 'crown', altFor(side), `${side} of the joint, facing the wall`);
+    if (nested && r.canTilt === false) {
+      const f = res.flat[side];
+      card = card.replace(/<\/section>$/, `<div class="warn">Nested, this cut needs the blade tilted ${r.bevel > 0 ? 'left' : 'right'}, and your saw only tilts ${tilt}. Cut this piece flat instead: miter ${f1(Math.abs(f.miter))}° ${f.miter > 0 ? 'right' : 'left'}, bevel ${f1(Math.abs(f.bevel))}° ${f.bevel > 0 ? 'left' : 'right'}.</div></section>`);
+    }
+    out.push(card);
+  }
+  out.push(`<p class="note">Where a level wall meets the sloped wall, turn the corner with a normal wall-corner cut. Then run a short level piece on the sloped wall and use the Bottom joint from that piece up the slope. The profiles line up exactly that way.</p>`);
+  out.push(`<p class="note">On walls where the ceiling slopes up away from the wall, the crown runs level. Use the wall-corner calculator, but the ceiling edge won't sit flat, so you may need to rip or shim it.</p>`);
   $('#results').innerHTML = out.join('');
 }
 
@@ -369,7 +456,7 @@ $('#inputs').addEventListener('click', (e) => {
     view.set(v);
     const input = $(`input[data-key="${key}"]`);
     if (input) input.value = fd(view.get());
-    if (key === 'sides') return commit({ inputs: true });
+    if (key === 'sides' || key === 'pitch') return commit({ inputs: true });
     return commit();
   }
 });
@@ -394,7 +481,7 @@ $('#inputs').addEventListener('change', (e) => {
   const key = e.target.dataset.key;
   if (VIEWS[key]) {
     e.target.value = fd(VIEWS[key].get());
-    if (key === 'sides') commit({ inputs: true });
+    if (key === 'sides' || key === 'pitch') commit({ inputs: true });
   }
 });
 
