@@ -40,7 +40,16 @@
       <label class="field"><span class="label">Max bevel</span>
         <span class="num"><input type="number" inputmode="decimal" data-setting="maxBevel" min="0" max="90" step="1"><i>°</i></span></label>
     </div>
-    <p class="hint">Results past these limits are flagged, with another way to make the cut.</p>
+    <p class="hint">When a cut is past these limits, the app switches to another setup that works.</p>
+    <div class="field">
+      <span class="label">For miters too steep for the saw</span>
+      <div class="seg" data-setting="clampMethod">
+        <button data-v="block">Angled block</button>
+        <button data-v="square">Square to fence</button>
+      </div>
+    </div>
+    <label class="field" id="blockAngleField"><span class="label">Block angle</span>
+      <span class="num"><input type="number" inputmode="decimal" data-setting="blockAngle" min="5" max="60" step="1"><i>°</i></span></label>
   </section>
 
   <nav class="modes seg" id="modes" aria-label="Cut type">

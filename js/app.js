@@ -1,5 +1,5 @@
 import * as G from './geometry.js';
-import { roomDiagram, crownSection, tiltSection, sawDiagram, frameDiagram, wallDiagram } from './diagrams.js';
+import { roomDiagram, crownSection, tiltSection, sawDiagram, frameDiagram, wallDiagram, sawClampDiagram } from './diagrams.js';
 import { VERSION } from './version.js';
 
 // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ const DEFAULTS = {
   slopeL: 0,
   slopeR: 30,
 };
-const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45 };
+const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45, clampMethod: 'block', blockAngle: 45 };
 
 const load = (k, d) => {
   try { return { ...d, ...JSON.parse(localStorage.getItem(k) || '{}') }; } catch { return { ...d }; }
@@ -279,28 +279,70 @@ function placementSteps(r, mode) {
   };
 }
 
-function limitWarning(r, alt) {
-  const over = [];
-  if (Math.abs(r.miter) > settings.maxMiter + 0.05) over.push(`miter is past your saw's ${fd(settings.maxMiter)}° limit`);
-  if (Math.abs(r.bevel) > settings.maxBevel + 0.05) over.push(`bevel is past your saw's ${fd(settings.maxBevel)}° limit`);
-  if (!over.length) return '';
-  return `<div class="warn">This ${over.join(' and ')}.${alt ? ' ' + alt : ''}</div>`;
+function fits(r) { return Math.abs(r.miter) <= settings.maxMiter + 0.05 && Math.abs(r.bevel) <= settings.maxBevel + 0.05; }
+function tiltOk(r) {
+  return settings.tilt === 'dual' || Math.abs(r.bevel) < 0.05 || (settings.tilt === 'left' ? r.bevel > 0 : r.bevel < 0);
+}
+const usable = (r) => r && fits(r) && tiltOk(r);
+function whyNot(r) {
+  const parts = [];
+  if (Math.abs(r.miter) > settings.maxMiter + 0.05) parts.push(`${f1(Math.abs(r.miter))}° miter is past your saw's ${fd(settings.maxMiter)}°`);
+  if (Math.abs(r.bevel) > settings.maxBevel + 0.05) parts.push(`${f1(Math.abs(r.bevel))}° bevel is past your saw's ${fd(settings.maxBevel)}°`);
+  if (!tiltOk(r)) parts.push(`it needs the blade tilted ${r.bevel > 0 ? 'left' : 'right'}`);
+  return parts.join(' and ');
 }
 
-function pieceCard(side, r, mode, alt, where = `${side} wall, facing the corner`) {
-  const { steps, labels } = placementSteps(r, mode);
-  const keep = `Keep the piece on the <b>${r.keep.toUpperCase()}</b> of the blade.`;
+/**
+ * Pick the setup this saw can actually make: the chosen one, else the other normal fence
+ * setup, else a clamped setup (angled block or square to the fence).
+ */
+function resolvePiece(primary, alt, altName) {
+  if (usable(primary)) return { r: primary };
+  const why = whyNot(primary);
+  if (alt && usable(alt)) return { r: alt, reason: `The usual setup won't work here: the ${why}. This piece is cut ${altName} instead.` };
+  const alpha = settings.clampMethod === 'square' ? 90 : Number(settings.blockAngle) || 45;
+  for (const c of [primary, alt]) {
+    if (!c) continue;
+    const v = G.clampedSetup(c, alpha, settings.tilt);
+    if (usable(v)) {
+      const how = v.clamped.method === 'block' ? `held against a ${fd(v.clamped.angle)}° block` : 'clamped square to the fence';
+      const fb = v.clamped.fallback ? ` (a ${v.clamped.method === 'block' ? 'square setup' : 'block'} can't work for this piece on your saw)` : '';
+      return { r: v, reason: `The usual setup won't work here: the ${why}. This piece is ${how}${c === alt ? `, cut ${altName}` : ''}${fb}.` };
+    }
+  }
+  return { r: primary, fail: `This cut won't work on your saw: the ${why}, and no clamped setup fixes it. Check the saw settings under the gear icon.` };
+}
+
+const SAFETY = 'Clamp both the block and the board so neither can shift. Cutting without the board tight to the fence is more dangerous: keep hands well clear of the blade, and let it stop before you lift it or reach for the offcut.';
+
+function pieceCard(side, res, mode, where = `${side} wall, facing the corner`) {
+  const r = res.r;
+  let { steps, labels } = placementSteps(r, mode);
+  if (r.clamped) {
+    const block = r.clamped.method === 'block';
+    steps = steps.map((t) => t.replace(/against the fence/g, block ? 'against the angled block' : 'against the square block')
+      .replace(/up against the fence/g, 'up against the block'));
+    steps.unshift(block
+      ? `Clamp a <b>${fd(r.clamped.angle)}° block</b> of scrap to the fence (the blade may cut into it). The board rests against the block, not the fence, with its long end angled toward you.`
+      : 'Clamp a <b>square block</b> of scrap to the fence (the blade may cut into it). Set the board <b>at 90° to the fence</b> against the block, with its long end toward you.');
+    if (r.placement.kind === 'nested') steps.splice(1, 0, 'Make the block at least as tall as the crown so the crown’s back rests on it at its spring angle.');
+    steps.push('<b>Clamp the board</b> before cutting.');
+    labels = { ...labels, fence: labels.fence.replace(/(at|against) fence|up the fence/, 'on the block') };
+  }
+  const keep = r.keep === 'front'
+    ? 'Keep the long piece <b>toward you</b>; the offcut is by the fence.'
+    : `Keep the piece on the <b>${r.keep.toUpperCase()}</b> of the blade.`;
   return `<section class="card piece">
     <h3>${side === 'left' ? 'Left' : 'Right'} piece <small>${where}</small></h3>
+    ${res.reason ? `<p class="why">${res.reason}</p>` : ''}
     ${bigNumbers(r)}
     <ol class="steps">${steps.map((s) => `<li>${s}</li>`).join('')}<li>${keep}</li>${r.longPoint && r.longPoint !== 'none'
       ? `<li>The long point ends up on the <b>${r.longPoint === 'outer' ? 'outer' : 'opening'}</b> edge.</li>` : ''}</ol>
-    <div class="sawfig">${sawDiagram(r, labels)}</div>
-    ${limitWarning(r, alt)}
+    <div class="sawfig">${r.clamped ? sawClampDiagram(r, labels) : sawDiagram(r, labels)}</div>
+    ${r.clamped ? `<div class="safety"><b>Safety:</b> ${SAFETY}</div>` : ''}
+    ${res.fail ? `<div class="warn">${res.fail}</div>` : ''}
   </section>`;
 }
-
-function fits(r) { return Math.abs(r.miter) <= settings.maxMiter + 0.05 && Math.abs(r.bevel) <= settings.maxBevel + 0.05; }
 
 function renderResults() {
   const out = [];
@@ -319,12 +361,8 @@ function renderResults() {
     const r = G.frame({ cornerDeg: W, wLeft: wL, wRight: wR });
     out.push(`<p class="badge">${r.corner === 'inside' ? 'Inside' : 'Outside'} corner · ${fd(W)}° · left ${esc(state.frameWL)} / right ${esc(state.frameWR)}</p>`);
     out.push(`<div class="framefig">${frameDiagram(W, wL, wR)}</div>`);
-    const steep = (p) => {
-      const c = 90 - Math.abs(p.miter);
-      return c <= settings.maxMiter ? `Clamp the board to a square block so it sits at 90° to the fence, then cut at ${f1(c)}°.` : '';
-    };
-    out.push(pieceCard('left', r.left, 'frame', steep(r.left), 'left board, seen from the opening'));
-    out.push(pieceCard('right', r.right, 'frame', steep(r.right), 'right board, seen from the opening'));
+    out.push(pieceCard('left', resolvePiece(r.left), 'frame', 'left board, seen from the opening'));
+    out.push(pieceCard('right', resolvePiece(r.right), 'frame', 'right board, seen from the opening'));
     if (wL !== wR) out.push(`<p class="note">The two angles are different because the boards are different widths. Together they add up to ${fd(180 - W)}°, which is 180° minus the corner angle.</p>`);
     $('#results').innerHTML = out.join('');
     return;
@@ -337,12 +375,12 @@ function renderResults() {
 
   out.push(`<div class="roomfig">${roomDiagram(corner, W)}</div>`);
 
-  let pieces, mode = state.mode, altFor = () => '';
+  let pieces, others, altName, mode = state.mode;
   if (state.mode === 'crown') {
     const res = G.crown({ cornerDeg: W, corner, springDeg: state.spring, tilt });
     pieces = state.crownMethod === 'flat' ? res.flat : res.nested;
-    const other = state.crownMethod === 'flat' ? res.nested : res.flat;
-    altFor = (side) => fits(other[side]) ? `Try cutting it ${state.crownMethod === 'flat' ? 'nested' : 'flat'}: miter ${f1(Math.abs(other[side].miter))}°, bevel ${f1(Math.abs(other[side].bevel))}°.` : '';
+    others = state.crownMethod === 'flat' ? res.nested : res.flat;
+    altName = state.crownMethod === 'flat' ? 'nested (upside down against the fence)' : 'flat on the table';
     if (state.crownMethod === 'nested') {
       out.push(`<p class="note">Nested cuts need the saw's fence tall enough to hold the crown at its spring angle. Use crown stops or a jig so it can't slip.</p>`);
     }
@@ -351,16 +389,16 @@ function renderResults() {
     const res = G.compoundBoard({ cornerDeg: W, corner, tiltDeg, tilt });
     const how = state.mode === 'base' ? state.baseHow : state.compoundHow;
     pieces = how === 'flat' ? res.flat : res.edge;
-    const other = how === 'flat' ? res.edge : res.flat;
-    altFor = (side) => fits(other[side]) ? `Try ${how === 'flat' ? 'standing it against the fence' : 'laying it flat'}: miter ${f1(Math.abs(other[side].miter))}°, bevel ${f1(Math.abs(other[side].bevel))}°.` : '';
+    others = how === 'flat' ? res.edge : res.flat;
+    altName = how === 'flat' ? 'standing against the fence' : 'flat on the table';
     if (state.mode === 'compound' && state.tilt > 0) {
       out.push(`<p class="note">To make the top and bottom edges sit level, rip them at ${fd(G.edgeRip(state.tilt))}° first.${state.compoundBy === 'sides' ? ' Every side gets the left-piece cut on one end and the right-piece cut on the other.' : ''}</p>`);
     } else if (state.mode === 'compound' && state.compoundBy === 'sides') {
       out.push(`<p class="note">Every side gets the left-piece cut on one end and the right-piece cut on the other.</p>`);
     }
   }
-  out.push(pieceCard('left', pieces.left, mode, altFor('left')));
-  out.push(pieceCard('right', pieces.right, mode, altFor('right')));
+  out.push(pieceCard('left', resolvePiece(pieces.left, others.left, altName), mode));
+  out.push(pieceCard('right', resolvePiece(pieces.right, others.right, altName), mode));
   if (tilt !== 'dual' && pieces.left.placement.kind === 'flat') {
     out.push(`<p class="note">Your saw only tilts ${tilt}, so the two pieces use opposite edges against the fence. Change this under the gear icon.</p>`);
   }
@@ -377,20 +415,10 @@ function renderRake(out, tilt) {
   out.push(`<div class="framefig">${wallDiagram(res.joint, sl, sr)}</div>`);
   const nested = state.crownMethod === 'nested';
   const pieces = nested ? res.nested : res.flat;
-  const other = nested ? res.flat : res.nested;
-  const altFor = (side) => {
-    const o = other[side];
-    if (!fits(o) || (!nested && o.canTilt === false)) return '';
-    return `Try cutting it ${nested ? 'flat' : 'nested'}: miter ${f1(Math.abs(o.miter))}°, bevel ${f1(Math.abs(o.bevel))}°.`;
-  };
+  const others = nested ? res.flat : res.nested;
+  const altName = nested ? 'flat on the table' : 'nested (upside down against the fence)';
   for (const side of ['left', 'right']) {
-    const r = pieces[side];
-    let card = pieceCard(side, r, 'crown', altFor(side), `${side} of the joint, facing the wall`);
-    if (nested && r.canTilt === false) {
-      const f = res.flat[side];
-      card = card.replace(/<\/section>$/, `<div class="warn">Nested, this cut needs the blade tilted ${r.bevel > 0 ? 'left' : 'right'}, and your saw only tilts ${tilt}. Cut this piece flat instead: miter ${f1(Math.abs(f.miter))}° ${f.miter > 0 ? 'right' : 'left'}, bevel ${f1(Math.abs(f.bevel))}° ${f.bevel > 0 ? 'left' : 'right'}.</div></section>`);
-    }
-    out.push(card);
+    out.push(pieceCard(side, resolvePiece(pieces[side], others[side], altName), 'crown', `${side} of the joint, facing the wall`));
   }
   out.push(`<p class="note">Where a level wall meets the sloped wall, turn the corner with a normal wall-corner cut. Then run a short level piece on the sloped wall and use the Bottom joint from that piece up the slope. The profiles line up exactly that way.</p>`);
   out.push(`<p class="note">On walls where the ceiling slopes up away from the wall, the crown runs level. Use the wall-corner calculator, but the ceiling edge won't sit flat, so you may need to rip or shim it.</p>`);
@@ -492,13 +520,16 @@ $('#settingsBtn').addEventListener('click', (e) => {
   e.currentTarget.setAttribute('aria-expanded', String(!settingsEl.hidden));
 });
 function renderSettings() {
-  settingsEl.querySelectorAll('[data-setting="tilt"] button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === settings.tilt));
+  settingsEl.querySelectorAll('.seg[data-setting]').forEach((g) => g.querySelectorAll('button')
+    .forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === settings[g.dataset.setting])));
+  const blk = settingsEl.querySelector('#blockAngleField');
+  if (blk) blk.hidden = settings.clampMethod !== 'block';
   settingsEl.querySelectorAll('input[data-setting]').forEach((i) => { i.value = settings[i.dataset.setting]; });
 }
 settingsEl.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-setting="tilt"] button');
+  const b = e.target.closest('.seg[data-setting] button');
   if (!b) return;
-  settings.tilt = b.dataset.v;
+  settings[b.closest('.seg').dataset.setting] = b.dataset.v;
   save('sawangles.settings', settings);
   renderSettings();
   renderResults();

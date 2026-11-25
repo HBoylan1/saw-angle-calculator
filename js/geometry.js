@@ -94,8 +94,60 @@ export function solvePlacement(jointN, side, placement) {
   const { miter, bevel } = sawSettings(nSaw);
   const end = toSaw(cutEndDir(side), placement);
   // The cut end points toward +X → the board's body is on the left of the blade.
-  const keep = end[0] > 0 ? 'left' : 'right';
-  return { miter: clean(miter), bevel: clean(bevel), keep, placement };
+  // A board square to the fence (end along ±Y) keeps the piece toward the operator.
+  const keep = Math.abs(end[0]) < 1e-6 ? 'front' : end[0] > 0 ? 'left' : 'right';
+  return { miter: clean(miter), bevel: clean(bevel), keep, placement, jointN, side, body: neg(end) };
+}
+
+/** Rotate a placement about the saw's vertical axis (the board turned on the table). */
+function rotatePlacement(p, thetaDeg) {
+  const t = rad(thetaDeg), c = Math.cos(t), s = Math.sin(t);
+  const rz = (v) => [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+  return { ...p, U: rz(p.U), V: rz(p.V) };
+}
+
+const SWAP_EDGE = { upper: 'lower', lower: 'upper', outer: 'opening', opening: 'outer' };
+
+/**
+ * A miter too steep for the saw, made by turning the board on the table and clamping it:
+ *   alpha = 45 (or another block angle): board held against an angled block on the fence;
+ *           the saw only needs |miter| - alpha.
+ *   alpha = 90: board clamped square to the fence; the saw needs 90 - |miter|.
+ * Turning the board leaves the bevel unchanged except when the board must also be
+ * turned end for end (so its long part runs toward the operator, not into the fence),
+ * which flips the bevel's direction.
+ * Returns null when no clamped setup works for this saw.
+ */
+export function clampedVariant(r, alpha, tilt = 'dual') {
+  if (!r?.placement || Math.abs(r.miter) < 1e-9) return null;
+  const base = -Math.sign(r.miter) * alpha;
+  // Turning end for end only makes sense when either edge can face the fence.
+  const flippable = r.placement.kind === 'flat' || r.placement.kind === 'frame';
+  const tries = flippable ? [[base, false], [base + 180, true]] : [[base, false]];
+  for (const [theta, flip] of tries) {
+    const p = rotatePlacement(r.placement, theta);
+    if (flip) p.fenceEdge = SWAP_EDGE[p.fenceEdge] ?? p.fenceEdge;
+    const v = solvePlacement(r.jointN, r.side, p);
+    if (v.body[1] > -1e-6) continue; // long part would run into the fence
+    const tiltOk = tilt === 'dual' || Math.abs(v.bevel) < 1e-9 || (tilt === 'left' ? v.bevel > 0 : v.bevel < 0);
+    if (!tiltOk) continue;
+    v.clamped = { method: alpha >= 89.9 ? 'square' : 'block', angle: alpha, theta, flip };
+    for (const k of ['cut', 'longPoint']) if (k in r) v[k] = r[k];
+    return v;
+  }
+  return null;
+}
+
+/**
+ * Clamped setup using the preferred method, falling back to the other method
+ * (angled block <-> square to fence) when the preferred one can't work on this saw.
+ */
+export function clampedSetup(r, preferredAlpha, tilt = 'dual') {
+  const first = clampedVariant(r, preferredAlpha, tilt);
+  if (first) return first;
+  const other = clampedVariant(r, preferredAlpha >= 89.9 ? 45 : 90, tilt);
+  if (other) other.clamped.fallback = true;
+  return other;
 }
 
 const clean = (x) => (Math.abs(x) < 1e-9 ? 0 : x);
@@ -288,14 +340,20 @@ export function frame({ cornerDeg, wLeft = 1, wRight = 1 }) {
   // atan2 keeps the right quadrant when sin W < 0; fold into (-90, 90].
   const fold = (m) => (m > 90 ? m - 180 : m <= -90 ? m + 180 : m);
   const left = fold(mL), right = fold(mR);
-  const piece = (m, side) => ({
-    cut: m, // + = long point on the outer edge
-    miter: clean(side === 'left' ? -m : m),
-    bevel: 0,
-    keep: side,
-    longPoint: Math.abs(m) < 1e-9 ? 'none' : m > 0 ? 'outer' : 'opening',
-    placement: { kind: 'frame', fenceEdge: 'outer' },
-  });
+  // Solve each piece with the same 3D engine as everything else, so clamped variants work.
+  // Local frame of each board: body along -x (right board) or +x (left board) from the
+  // corner, inner edge on y = 0, outer edge at y = -width, face up (+z). The joint's normal
+  // is square to the in-plane line at `m` from square across the board.
+  const boardFrame2 = { width: [0, -1, 0], face: [0, 0, 1] }; // "upper" edge = outer edge
+  const piece = (m, side) => {
+    const t = rad(m);
+    const n = side === 'left' ? [Math.cos(t), -Math.sin(t), 0] : [-Math.cos(t), -Math.sin(t), 0];
+    const pl = { ...flatPlacement(boardFrame2, true), kind: 'frame', fenceEdge: 'outer' };
+    const r = solvePlacement(n, side, pl);
+    r.cut = m; // + = long point on the outer edge
+    r.longPoint = Math.abs(m) < 1e-9 ? 'none' : m > 0 ? 'outer' : 'opening';
+    return r;
+  };
   return {
     corner: cornerDeg < 180 ? 'inside' : 'outside',
     left: piece(left, 'left'),

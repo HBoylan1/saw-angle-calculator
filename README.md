@@ -13,7 +13,7 @@ A phone calculator for miter saw settings: crown molding, baseboard, compound (t
 | Compound | Splayed boxes, hoppers, planters, trim tilted off plumb | Number of sides or corner angle, tilt from plumb or level, lean in/out |
 | Frame | Casing, picture frames, anything flat in one plane, including boards of different widths | Corner angle across the opening (up to 359°), left and right board widths |
 
-For each piece it shows the miter and bevel, which way to swing and tilt, which edge goes against the fence, which side of the blade to keep, and a top-view picture of the cut. Under the gear icon you set whether your blade tilts left, right or both ways, and your saw's maximum miter and bevel; cuts past those limits are flagged, with another way to make them.
+For each piece it shows the miter and bevel, which way to swing and tilt, which edge goes against the fence, which side of the blade to keep, and a top-view picture of the cut. Under the gear icon you set whether your blade tilts left, right or both ways, and your saw's maximum miter and bevel; when a cut is past those limits, the app switches to a setup that works: first another normal fence setup (nested instead of flat, standing instead of flat), then a clamped setup with the board held against an angled block (45° by default) or square to the fence.
 
 ## How the math works
 

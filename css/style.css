@@ -108,7 +108,7 @@ h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; t
 /* Results */
 .roomfig { max-width: 260px; margin: 0 auto 4px; }
 .piece { padding: 14px; }
-.piece h3 { margin: 0 0 10px; font-size: 18px; display: flex; justify-content: space-between; align-items: baseline; }
+.piece h3 { margin: 0 0 10px; font-size: 18px; display: flex; flex-wrap: wrap; gap: 2px 10px; justify-content: space-between; align-items: baseline; }
 .piece h3 small { font-size: 13px; color: var(--muted); font-weight: 500; }
 .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .big {
@@ -134,3 +134,5 @@ svg text { font-family: inherit; }
 .framefig svg { width: 100%; height: auto; display: block; }
 .num input[type="text"] { font-size: 24px; }
 .hint + .field { margin-top: 14px; }
+.why { font-size: 14px; color: var(--muted); margin: -4px 0 10px; }
+.safety { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; }

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.0 — 2026-11-25
+
+- When your saw can't make a cut (past its miter or bevel limit, or the blade would need to tilt the way it can't), the card now shows a setup that works instead of a warning:
+  - First choice: another normal fence setup, such as nested instead of flat or standing instead of flat.
+  - Otherwise: a clamped setup, with the numbers, steps and top-view picture for the board on the saw. The picture marks the block and where the clamps go.
+- Two clamped methods, chosen under the gear icon: **Angled block** (default 45°, angle adjustable), which takes the block angle off the miter, and **Square to fence**, which cuts at 90° minus the miter. If the chosen method can't work for a piece on your saw, the app uses the other one and says why.
+- Clamped setups show a short safety note on clamping and on the added risk of cutting without the board against the fence.
+- Frame cuts now go through the same 3D engine as the other modes.
+- One line on each card explains why the setup changed.
+
 ## v1.2.0 — 2026-11-21
 
 - Crown on sloped ceilings: a new "Sloped ceiling" option in Crown mode for joints on a gable or stair wall:

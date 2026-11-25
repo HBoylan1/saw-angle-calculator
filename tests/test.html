@@ -180,6 +180,39 @@ for (const W of [80, 90, 135]) {
   lines.push(`info level→rake 30°: flat L ${fmt(ex.flat.left)} | R ${fmt(ex.flat.right)} | nested L ${fmt(ex.nested.left)} | R ${fmt(ex.nested.right)}`);
 }
 
+// 11. Frames through the 3D engine, and clamped setups for steep miters.
+{
+  for (const [W, a, b] of [[90, 4.5, 3.5], [60, 2, 5], [135, 1, 4], [240, 2, 3]]) {
+    const r = G.frame({ cornerDeg: W, wLeft: a, wRight: b });
+    check(`frame engine W=${W} ${a}/${b}`, near(-r.left.miter, r.left.cut, 1e-9) && near(r.right.miter, r.right.cut, 1e-9)
+      && r.left.keep === 'left' && r.right.keep === 'right' && r.left.bevel === 0 && r.right.placement.fenceEdge === 'outer',
+      `${fmt(r.left)} | ${fmt(r.right)}`);
+  }
+  const c = G.frame({ cornerDeg: 90, wLeft: 4.5, wRight: 3.5 }).right; // 52.13°
+  const blk = G.clampedVariant(c, 45, 'left');
+  check('clamped block 52.1 → 7.1', blk && near(Math.abs(blk.miter), 52.13 - 45, 0.01) && blk.bevel === 0 && blk.body[1] < 0
+    && blk.clamped.method === 'block' && blk.keep === 'right', blk && fmt(blk));
+  const sq = G.clampedVariant(c, 90, 'left');
+  check('clamped square 52.1 → 37.9', sq && near(Math.abs(sq.miter), 90 - 52.13, 0.01) && sq.keep === 'front' && sq.body[1] < 0, sq && fmt(sq));
+  // Crown flat, steep corner: miter shifts by the block angle, bevel size unchanged, saw can still tilt.
+  for (const t of ['left', 'right', 'dual']) {
+    for (const side of ['left', 'right']) {
+      const r = G.crown({ cornerDeg: 60, corner: 'inside', springDeg: 52, tilt: t }).flat[side]; // 53.77 / 32.22
+      const v = G.clampedSetup(r, 45, t);
+      const okTilt = t === 'dual' || (t === 'left' ? v?.bevel > 0 : v?.bevel < 0);
+      const want = v?.clamped.method === 'block' ? 53.77 - 45 : 90 - 53.77;
+      if (!v) { check(`clamped crown ${side} ${t}-tilt: none possible (single-tilt only)`, t !== 'dual'); continue; }
+      check(`clamped crown ${side} ${t}-tilt`, v && near(Math.abs(v.miter), want, 0.02) && near(Math.abs(v.bevel), Math.abs(r.bevel), 1e-9)
+        && okTilt && v.body[1] < 0, v && `${fmt(v)} ${v.clamped.method}${v.clamped.fallback ? ' (fallback)' : ''}`);
+    }
+  }
+  // Nested crown can't be turned end for end; at least one side is still solvable.
+  const nz = G.crown({ cornerDeg: 70, corner: 'inside', springDeg: 38 }).nested; // 55° miters
+  const nl = G.clampedVariant(nz.left, 45), nr = G.clampedVariant(nz.right, 45);
+  lines.push(`info nested 70° clamped: L ${nl ? fmt(nl) : 'none'} | R ${nr ? fmt(nr) : 'none'}`);
+  check('nested clamped keeps wall edge on fence', [nl, nr].every((v) => !v || v.placement.fenceEdge === 'lower'));
+}
+
 lines.unshift(fails ? `${fails} FAILED` : 'ALL PASSED');
 document.getElementById('out').textContent = lines.join('\n');
 window.__result = { fails, lines };

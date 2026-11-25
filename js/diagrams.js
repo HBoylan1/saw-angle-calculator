@@ -51,6 +51,117 @@ export function roomDiagram(corner, W) {
   return out.join('');
 }
 
+// Keep the part of a convex polygon where f(p) >= 0 (f linear).
+function clipPoly(pts, f) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const fa = f(a), fb = f(b);
+    if (fa >= 0) out.push(a);
+    if ((fa >= 0) !== (fb >= 0)) {
+      const t = fa / (fa - fb);
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Top view of a clamped setup: the board turned on the table and held against an angled
+ * block (or square to the fence), clamped. Drawn in saw coordinates (X right, Y toward
+ * the fence) from the solved result, so it matches the numbers.
+ */
+export function sawClampDiagram(r, labels) {
+  const { theta, method, angle, flip } = r.clamped;
+  const th = rad(theta);
+  const body = [r.body[0], r.body[1]];
+  const bl = Math.hypot(body[0], body[1]);
+  const bd = [body[0] / bl, body[1] / bl]; // direction of the long part (toward the operator)
+  // The edge that faced the fence before turning faced +Y; turning carries it round.
+  // When the board was also turned end for end, the other edge is the one on the block.
+  let n = [-Math.sin(th), Math.cos(th)];
+  if (flip) n = [-n[0], -n[1]];
+  const hw = 15, L = 170;
+  // Where the back edge meets the fence (block's thin end), on the cut-end side.
+  const back = (t) => [n[0] * hw + bd[0] * t, n[1] * hw + bd[1] * t];
+  let F; // fence line Y
+  if (method === 'block') F = back(-28)[1];
+  else F = -bd[1] * 46; // board's end butts the fence 46 units behind the blade line
+  const board = clipPoly([
+    [n[0] * hw - bd[0] * L, n[1] * hw - bd[1] * L], [n[0] * hw + bd[0] * L, n[1] * hw + bd[1] * L],
+    [-n[0] * hw + bd[0] * L, -n[1] * hw + bd[1] * L], [-n[0] * hw - bd[0] * L, -n[1] * hw - bd[1] * L],
+  ], (p) => F - p[1]);
+  // Keep the board above the legend at the bottom of the picture.
+  const VH0 = 250, floorY = F - (VH0 - 64 - 32);
+  const boardC = clipPoly(board, (p) => p[1] - floorY);
+  board.length = 0; board.push(...boardC);
+  // Blade line through the origin, direction (-sin M, cos M) front→back.
+  const M = rad(r.miter), bdir = [-Math.sin(M), Math.cos(M)];
+  const side = (p) => bdir[0] * p[1] - bdir[1] * p[0]; // >0 on one side
+  const bodySign = Math.sign(side([bd[0] * 60, bd[1] * 60])) || 1;
+  const keepPoly = clipPoly(board, (p) => side(p) * bodySign);
+  const wastePoly = clipPoly(board, (p) => -side(p) * bodySign);
+
+  const VW = 320, VH = 250, fenceY = 32, X0 = 160;
+  const S = (p) => [X0 + p[0], fenceY + (F - p[1])];
+  const path = (ps) => (ps.length ? 'M' + ps.map((p) => P(...S(p))).join(' L') + ' Z' : '');
+  const out = [`<svg viewBox="0 0 ${VW} ${VH}" role="img" aria-label="Top view of the clamped setup. Keep the ${r.keep === 'front' ? 'piece toward you' : r.keep + ' piece'}.">`];
+  out.push('<defs><pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--muted)" stroke-width="1" opacity=".5"/></pattern></defs>');
+  out.push(`<rect x="6" y="${fenceY - 14}" width="308" height="14" rx="3" fill="var(--muted)" opacity=".55"/>`);
+  out.push(`<text x="${VW / 2}" y="${fenceY - 3}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--bg)" letter-spacing="2">FENCE</text>`);
+
+  // The block: wedge between fence and the board's back edge (or a square block beside it).
+  let blockPts;
+  if (method === 'block') {
+    const q1 = back(-28), q2 = back(118), q3 = [q2[0], F];
+    blockPts = [q1, q2, q3];
+  } else {
+    const s0 = [n[0] * hw, 0];
+    const x1 = s0[0], x2 = s0[0] + n[0] * 26;
+    blockPts = [[x1, F], [x2, F], [x2, F - 92], [x1, F - 92]];
+  }
+  out.push(`<path d="${path(blockPts)}" fill="var(--line)" stroke="var(--muted)" stroke-width="1.5"/>`);
+
+  out.push(`<path d="${path(keepPoly)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5"/>`);
+  out.push(`<path d="${path(wastePoly)}" fill="var(--waste)"/><path d="${path(wastePoly)}" fill="url(#hatch2)"/>`);
+
+  // Blade
+  const b0 = S([-bdir[0] * 120, -bdir[1] * 120]), b1 = S([bdir[0] * 120, bdir[1] * 120]);
+  out.push(`<line x1="${b0[0].toFixed(1)}" y1="${b0[1].toFixed(1)}" x2="${b1[0].toFixed(1)}" y2="${b1[1].toFixed(1)}" stroke="var(--blade)" stroke-width="3" stroke-dasharray="${Math.abs(r.bevel) > 0.05 ? '7 4' : 'none'}"/>`);
+
+  // Labels on the kept piece
+  const kp = S([bd[0] * 62, bd[1] * 62]);
+  out.push(`<text x="${kp[0].toFixed(1)}" y="${(kp[1] + 5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">KEEP</text>`);
+
+  // Clamps: one on the board, one on the block
+  const clamp = (p, label) => {
+    const [x, y] = S(p);
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">
+      <rect x="-8" y="-11" width="16" height="22" rx="3" fill="none" stroke="var(--accent)" stroke-width="3"/>
+      <line x1="-8" y1="0" x2="8" y2="0" stroke="var(--accent)" stroke-width="2"/>
+      <circle cx="0" cy="0" r="3" fill="var(--accent)"/>
+      ${label ? `<text x="12" y="4" font-size="10" font-weight="700" fill="var(--accent)">${label}</text>` : ''}
+    </g>`;
+  };
+  out.push(clamp(method === 'block' ? [bd[0] * 108, bd[1] * 108] : [bd[0] * 92 - n[0] * 0, bd[1] * 92], 'CLAMP'));
+  const bc = method === 'block' ? [blockPts[2][0] * 0.6 + blockPts[1][0] * 0.4, F - 6] : [(blockPts[0][0] + blockPts[1][0]) / 2, F - 70];
+  out.push(clamp(bc, ''));
+
+  // Text legend
+  const md = Math.abs(r.miter) < 0.05 ? 'square (0°)' : `handle ${r.miter > 0 ? 'RIGHT' : 'LEFT'} ${f1(Math.abs(r.miter))}°`;
+  out.push(`<text x="${VW - 8}" y="${VH - 44}" text-anchor="end" font-size="11" font-weight="700" fill="var(--blade)">${md}</text>`);
+  out.push(`<text x="8" y="${VH - 44}" font-size="10" fill="var(--ink)">${method === 'block' ? `${fd1(angle)}° block clamped to fence` : 'board square to fence'}</text>`);
+  out.push(`<text x="8" y="${VH - 30}" font-size="10" fill="var(--ink)">▲ ${labels.fence}</text>`);
+  // bevel glyph
+  const gx = 250, gy = VH - 6, gl = 22, B = rad(r.bevel);
+  out.push(`<line x1="${gx - 18}" y1="${gy}" x2="${gx + 18}" y2="${gy}" stroke="var(--muted)" stroke-width="2"/>`);
+  out.push(`<line x1="${gx}" y1="${gy}" x2="${(gx - gl * Math.sin(B)).toFixed(1)}" y2="${(gy - gl * Math.cos(B)).toFixed(1)}" stroke="var(--blade)" stroke-width="3" stroke-linecap="round"/>`);
+  out.push(`<text x="${gx - 26}" y="${gy - 4}" text-anchor="end" font-size="10" font-weight="700" fill="var(--blade)">${Math.abs(r.bevel) < 0.05 ? 'blade straight' : `tilt ${r.bevel > 0 ? 'LEFT' : 'RIGHT'} ${f1(Math.abs(r.bevel))}°`}</text>`);
+  out.push('</svg>');
+  return out.join('');
+}
+const fd1 = (x) => f1(x);
+
 /**
  * Frame corner seen face-on, to scale, with the opening toward the viewer (bottom).
  * Left board runs off to the left, right board to the right; red line = the joint.
