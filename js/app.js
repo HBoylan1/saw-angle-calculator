@@ -131,10 +131,8 @@ function rakeInputs() {
     ? `<div class="field"><span class="label">Looking at the wall, the ceiling slopes up to the</span>
         ${seg('rakeDir', [['left', 'Left'], ['right', 'Right']], state.rakeDir)}</div>` : '';
   const pitch = j === 'custom'
-    ? `<div class="row2">
-        ${numField('slopeL', 'Left piece slope', state.slopeL, { min: -80, max: 80 })}
-        ${numField('slopeR', 'Right piece slope', state.slopeR, { min: -80, max: 80 })}
-      </div>
+    ? `${numField('slopeL', 'Left piece slope', state.slopeL, { min: -80, max: 80 })}
+      ${numField('slopeR', 'Right piece slope', state.slopeR, { min: -80, max: 80 })}
       <p class="hint">Degrees above level, measured going away from the joint. Use a negative number when the piece runs downhill away from the joint. Left and right are as you face the wall.</p>`
     : `<div class="field"><span class="label">Ceiling slope</span>
         ${seg('pitchUnit', [['deg', 'Degrees'], ['rise', 'Rise per 12″']], state.pitchUnit)}</div>
@@ -164,9 +162,9 @@ function renderInputs() {
       <hr class="sep">
       <div class="field"><span class="label">Measure the crown angle from</span>
         ${seg('crownRef', [['plumb', 'Wall (plumb)'], ['level', 'Ceiling (level)']], state.crownRef)}</div>
+      ${numField('spring', state.crownRef === 'plumb' ? 'Spring angle, from the wall' : 'Angle from the ceiling', VIEWS.spring.get(), { step: 0.5 })}
       <div class="trimfig">
-        <div>${numField('spring', state.crownRef === 'plumb' ? 'Spring angle, from the wall' : 'Angle from the ceiling', VIEWS.spring.get(), { step: 0.5 })}
-        ${chips('springPreset', [[38, '52/38 crown'], [45, '45/45 crown']], state.spring)}</div>
+        <div>${chips('springPreset', [[38, '52/38 crown'], [45, '45/45 crown']], state.spring)}</div>
         <div id="trimFig">${crownSection(state.spring, state.crownRef)}</div>
       </div>
       <p class="hint">The angle between the flat back of the crown and the ${state.crownRef === 'plumb' ? 'wall' : 'ceiling'}. Most crown is 52/38 (38° from the wall) or 45/45.</p>
@@ -191,9 +189,9 @@ function renderInputs() {
       <hr class="sep">
       <div class="field"><span class="label">Board tilt measured from</span>
         ${seg('tiltRef', [['plumb', 'Plumb'], ['level', 'Level']], state.tiltRef)}</div>
+      ${numField('tilt', state.tiltRef === 'plumb' ? 'Tilt from plumb (0 = straight up)' : 'Angle from level (90 = straight up)', VIEWS.tilt.get(), { step: 0.5 })}
       <div class="trimfig">
-        <div>${numField('tilt', state.tiltRef === 'plumb' ? 'Tilt from plumb (0 = straight up)' : 'Angle from level (90 = straight up)', VIEWS.tilt.get(), { step: 0.5 })}
-        ${seg('lean', [['out', 'Leans out'], ['in', 'Leans in']], state.lean)}</div>
+        <div>${seg('lean', [['out', 'Leans out'], ['in', 'Leans in']], state.lean)}</div>
         <div id="trimFig">${tiltSection(state.lean === 'out' ? state.tilt : -state.tilt, state.tiltRef)}</div>
       </div>
       <p class="hint">${state.compoundBy === 'sides' ? '“Out” means the top is wider than the bottom, like a hopper or planter.' : '“Out” means the top of the board leans away from the wall, into the room.'}</p>

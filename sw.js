@@ -1,5 +1,5 @@
 // Offline support. Bump CACHE when shipping a new version so phones pick it up.
-const CACHE = 'saw-angles-v1.4.0';
+const CACHE = 'saw-angles-v1.4.1';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/app.js', 'js/geometry.js', 'js/diagrams.js', 'js/version.js',

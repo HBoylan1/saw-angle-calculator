@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.1 — 2026-11-25
+
+- Fixed angle numbers getting cut off on iPhone. The crown angle field (Crown tab) and the board tilt field (Compound tab) now run the full width, and the little angle diagram sits beside the crown presets or the Leans out / Leans in buttons instead.
+- Fixed the same squeeze for the two slope fields in Crown, Sloped ceiling, Custom; they're now stacked.
+
 ## v1.4.0 — 2026-11-25
 
 - New **Display** section in settings with two toggles:

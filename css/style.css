@@ -102,7 +102,9 @@ h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; t
 }
 .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 
-.trimfig { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; }
+.trimfig { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px; align-items: center; margin-top: -4px; }
+.trimfig .chips { flex-direction: column; align-items: flex-start; margin-top: 0; }
+.trimfig .seg { flex-direction: column; }
 .trimfig svg, .roomfig svg { width: 100%; height: auto; display: block; }
 
 /* Results */
