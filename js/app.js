@@ -30,7 +30,7 @@ const DEFAULTS = {
   slopeL: 0,
   slopeR: 30,
 };
-const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45, clampMethod: 'block', blockAngle: 45 };
+const SETTINGS_DEFAULTS = { tilt: 'left', maxMiter: 50, maxBevel: 45, clampMethod: 'block', blockAngle: 45, font: false, hiVis: false };
 
 const load = (k, d) => {
   try { return { ...d, ...JSON.parse(localStorage.getItem(k) || '{}') }; } catch { return { ...d }; }
@@ -315,6 +315,20 @@ function resolvePiece(primary, alt, altName) {
 
 const SAFETY = 'Clamp both the block and the board so neither can shift. Cutting without the board tight to the fence is more dangerous: keep hands well clear of the blade, and let it stop before you lift it or reach for the offcut.';
 
+/** One short line describing how the board sits, for the high-visibility layout. */
+function setupLine(r, mode, labels) {
+  const k = r.placement.kind;
+  let s;
+  if (k === 'nested') s = 'Nested, upside down';
+  else if (k === 'edge') s = 'Standing, back to fence';
+  else if (k === 'frame') s = `Face up, ${r.placement.fenceEdge === 'outer' ? 'outer' : 'opening'} edge to fence`;
+  else s = `Flat, ${labels.fence.replace(/ (at fence|on the block)$/, '')} to fence`;
+  if (r.clamped) {
+    s = (r.clamped.method === 'block' ? `Clamped on ${fd(r.clamped.angle)}° block · ` : 'Clamped square to fence · ') + s.replace(/to fence$/, 'to block');
+  }
+  return s;
+}
+
 function pieceCard(side, res, mode, where = `${side} wall, facing the corner`) {
   const r = res.r;
   let { steps, labels } = placementSteps(r, mode);
@@ -332,19 +346,53 @@ function pieceCard(side, res, mode, where = `${side} wall, facing the corner`) {
   const keep = r.keep === 'front'
     ? 'Keep the long piece <b>toward you</b>; the offcut is by the fence.'
     : `Keep the piece on the <b>${r.keep.toUpperCase()}</b> of the blade.`;
+  const stepsHtml = `<ol class="steps">${steps.map((s) => `<li>${s}</li>`).join('')}<li>${keep}</li>${r.longPoint && r.longPoint !== 'none'
+      ? `<li>The long point ends up on the <b>${r.longPoint === 'outer' ? 'outer' : 'opening'}</b> edge.</li>` : ''}</ol>`;
+  const fig = `<div class="sawfig">${r.clamped ? sawClampDiagram(r, labels) : sawDiagram(r, labels)}</div>`;
+  if (settings.hiVis) {
+    return `<section class="card piece">
+    <h3>${side === 'left' ? 'Left' : 'Right'} piece <small>${where}</small></h3>
+    ${bigNumbers(r)}
+    <div class="summary"><span>${setupLine(r, mode, labels)}</span><b>${r.keep === 'front' ? 'KEEP the piece toward you' : `KEEP ${r.keep.toUpperCase()}`}</b></div>
+    ${res.fail ? `<div class="warn">${res.fail}</div>` : ''}
+    ${r.clamped ? '<p class="safety-short">⚠ Clamped cut. Read the safety note.</p>' : ''}
+    <details class="more"><summary>Steps & picture</summary>
+      ${res.reason ? `<p class="why">${res.reason}</p>` : ''}
+      ${stepsHtml}
+      ${fig}
+      ${r.clamped ? `<div class="safety"><b>Safety:</b> ${SAFETY}</div>` : ''}
+    </details>
+  </section>`;
+  }
   return `<section class="card piece">
     <h3>${side === 'left' ? 'Left' : 'Right'} piece <small>${where}</small></h3>
     ${res.reason ? `<p class="why">${res.reason}</p>` : ''}
     ${bigNumbers(r)}
-    <ol class="steps">${steps.map((s) => `<li>${s}</li>`).join('')}<li>${keep}</li>${r.longPoint && r.longPoint !== 'none'
-      ? `<li>The long point ends up on the <b>${r.longPoint === 'outer' ? 'outer' : 'opening'}</b> edge.</li>` : ''}</ol>
-    <div class="sawfig">${r.clamped ? sawClampDiagram(r, labels) : sawDiagram(r, labels)}</div>
+    ${stepsHtml}
+    ${fig}
     ${r.clamped ? `<div class="safety"><b>Safety:</b> ${SAFETY}</div>` : ''}
     ${res.fail ? `<div class="warn">${res.fail}</div>` : ''}
   </section>`;
 }
 
 function renderResults() {
+  renderResultsInner();
+  if (settings.hiVis) tidyNotes();
+}
+
+/** High-visibility layout: gather the extra notes into one fold-out at the bottom. */
+function tidyNotes() {
+  const res = $('#results');
+  const notes = [...res.querySelectorAll(':scope > p.note')];
+  if (notes.length < 1 || !res.querySelector('.piece')) return;
+  const d = document.createElement('details');
+  d.className = 'more notes';
+  d.innerHTML = `<summary>More notes (${notes.length})</summary>`;
+  notes.forEach((n) => d.appendChild(n));
+  res.appendChild(d);
+}
+
+function renderResultsInner() {
   const out = [];
   const tilt = settings.tilt;
   if (state.mode === 'frame') {
@@ -522,9 +570,11 @@ $('#settingsBtn').addEventListener('click', (e) => {
 function renderSettings() {
   settingsEl.querySelectorAll('.seg[data-setting]').forEach((g) => g.querySelectorAll('button')
     .forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === settings[g.dataset.setting])));
+  settingsEl.querySelectorAll('input[type="checkbox"][data-setting]').forEach((c) => { c.checked = !!settings[c.dataset.setting]; });
+  applyDisplay();
   const blk = settingsEl.querySelector('#blockAngleField');
   if (blk) blk.hidden = settings.clampMethod !== 'block';
-  settingsEl.querySelectorAll('input[data-setting]').forEach((i) => { i.value = settings[i.dataset.setting]; });
+  settingsEl.querySelectorAll('input[data-setting]:not([type="checkbox"])').forEach((i) => { i.value = settings[i.dataset.setting]; });
 }
 settingsEl.addEventListener('click', (e) => {
   const b = e.target.closest('.seg[data-setting] button');
@@ -534,7 +584,20 @@ settingsEl.addEventListener('click', (e) => {
   renderSettings();
   renderResults();
 });
+function applyDisplay() {
+  const root = document.documentElement;
+  if (settings.font) root.dataset.font = 'atkinson'; else delete root.dataset.font;
+  if (settings.hiVis) root.dataset.hivis = ''; else delete root.dataset.hivis;
+}
+settingsEl.addEventListener('change', (e) => {
+  if (e.target.type !== 'checkbox') return;
+  settings[e.target.dataset.setting] = e.target.checked;
+  save('sawangles.settings', settings);
+  applyDisplay();
+  renderAll();
+});
 settingsEl.addEventListener('input', (e) => {
+  if (e.target.type === 'checkbox') return;
   const k = e.target.dataset.setting;
   const v = parseFloat(e.target.value);
   if (!k || !Number.isFinite(v)) return;

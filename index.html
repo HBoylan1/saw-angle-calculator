@@ -15,16 +15,30 @@
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" href="fonts/atkinson-hyperlegible-400.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    try {
+      const s = JSON.parse(localStorage.getItem('sawangles.settings') || '{}');
+      if (s.font) document.documentElement.dataset.font = 'atkinson';
+      if (s.hiVis) document.documentElement.dataset.hivis = '';
+    } catch {}
+  </script>
 </head>
 <body>
   <header class="top">
     <h1>Saw Angles</h1>
-    <button id="settingsBtn" class="icon-btn" aria-label="Saw settings" aria-expanded="false">
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
     </button>
   </header>
 
   <section id="settings" class="card settings" hidden>
+    <h2>Display</h2>
+    <label class="switch"><input type="checkbox" data-setting="font"><span class="track" aria-hidden="true"></span>
+      <span>Easy Reading Mode <small>Switches everything to Atkinson Hyperlegible, a font where every letter and number looks distinct</small></span></label>
+    <label class="switch"><input type="checkbox" data-setting="hiVis"><span class="track" aria-hidden="true"></span>
+      <span>High-visibility layout <small>Huge numbers, high contrast, bigger buttons; details fold away</small></span></label>
+    <hr class="sep">
     <h2>Your saw</h2>
     <div class="field">
       <span class="label">Blade tilts</span>

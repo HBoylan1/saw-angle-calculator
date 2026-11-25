@@ -136,3 +136,82 @@ svg text { font-family: inherit; }
 .hint + .field { margin-top: 14px; }
 .why { font-size: 14px; color: var(--muted); margin: -4px 0 10px; }
 .safety { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; }
+
+/* ---------- Display settings ---------- */
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("../fonts/atkinson-hyperlegible-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("../fonts/atkinson-hyperlegible-700.woff2") format("woff2"); font-weight: 600 900; font-display: swap; }
+:root[data-font="atkinson"] body,
+:root[data-font="atkinson"] button,
+:root[data-font="atkinson"] input,
+:root[data-font="atkinson"] svg text { font-family: "Atkinson Hyperlegible", -apple-system, system-ui, sans-serif; letter-spacing: 0.01em; }
+
+.switch { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { flex: none; width: 50px; height: 30px; border-radius: 15px; background: var(--line); position: relative; transition: background .15s; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(20px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.switch small { display: block; color: var(--muted); font-size: 13px; }
+.settings h2 { margin-top: 2px; }
+
+/* ---------- High-visibility layout ---------- */
+:root[data-hivis] {
+  --bg: #ffffff; --card: #ffffff; --ink: #000000; --muted: #222222; --line: #000000;
+  --accent: #b83a00; --accent-ink: #ffffff; --accent-soft: #ffe2cc;
+  --keep: #f0b070; --keep-edge: #000000; --waste: #d0d0d0; --blade: #c00000;
+  --warn-bg: #fff0a0; --warn-ink: #000000;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-hivis]:not([data-theme="light"]) {
+    --bg: #000000; --card: #000000; --ink: #ffffff; --muted: #e6e6e6; --line: #ffffff;
+    --accent: #ff9a4d; --accent-ink: #000000; --accent-soft: #3d2410;
+    --keep: #b06a2a; --keep-edge: #ffffff; --waste: #3a3a3a; --blade: #ff5050;
+    --warn-bg: #3d3200; --warn-ink: #ffffff;
+  }
+}
+:root[data-hivis] body { font-size: 18px; }
+:root[data-hivis] .card { border-width: 2px; }
+:root[data-hivis] .seg { padding: 4px; gap: 4px; }
+:root[data-hivis] .seg button { min-height: 52px; font-size: 17px; font-weight: 600; }
+:root[data-hivis] .num input { font-size: 34px; padding: 10px 12px; border-width: 2px; border-color: var(--ink); }
+:root[data-hivis] .step { width: 60px; height: 60px; font-size: 28px; border: 2px solid var(--ink); background: var(--card); }
+:root[data-hivis] .chip { padding: 10px 16px; font-size: 17px; border-width: 2px; border-color: var(--ink); }
+:root[data-hivis] .label { font-size: 15px; color: var(--ink); font-weight: 600; }
+:root[data-hivis] .hint { font-size: 15px; }
+:root[data-hivis] .icon-btn { width: 52px; height: 52px; border: 2px solid var(--ink); color: var(--ink); }
+:root[data-hivis] .switch .track { border: 2px solid var(--ink); }
+
+/* numbers: one full-width row each, number and direction side by side */
+:root[data-hivis] .nums { grid-template-columns: 1fr; gap: 8px; }
+:root[data-hivis] .big { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 14px; align-items: center; border: 2px solid var(--ink); padding: 8px 14px; }
+:root[data-hivis] .big .k { grid-column: 1 / -1; font-size: 15px; color: var(--ink); }
+:root[data-hivis] .big .v { font-size: 64px; line-height: 1; }
+:root[data-hivis] .big .d { font-size: 24px; font-weight: 800; text-transform: uppercase; color: var(--accent); line-height: 1.1; }
+:root[data-hivis] .big .det { grid-column: 1 / -1; font-size: 14px; color: var(--ink); }
+:root[data-hivis] .piece h3 { font-size: 22px; }
+:root[data-hivis] .summary { display: flex; flex-direction: column; gap: 4px; font-size: 19px; margin: 4px 0 8px; }
+:root[data-hivis] .summary b { font-size: 24px; }
+:root[data-hivis] .safety-short { font-size: 15px; font-weight: 700; margin: 6px 0; }
+:root[data-hivis] .warn { font-size: 15px; border: 2px solid var(--ink); }
+:root[data-hivis] .safety { font-size: 14px; }
+
+/* details fold away; pictures smaller and simpler */
+.more { margin-top: 8px; }
+.more summary { cursor: pointer; font-weight: 700; padding: 12px 0; min-height: 48px; list-style-position: inside; }
+:root[data-hivis] .more summary { font-size: 18px; border-top: 2px solid var(--ink); }
+:root[data-hivis] .more .steps { font-size: 16px; }
+:root[data-hivis] .sawfig svg { max-width: 260px; margin: 4px auto 0; }
+:root[data-hivis] .roomfig, :root[data-hivis] .framefig { max-width: 170px; }
+:root[data-hivis] .badge { font-size: 18px; }
+:root[data-hivis] svg .minor { display: none; }
+:root[data-hivis] .note { font-size: 15px; color: var(--ink); }
+:root[data-hivis] .foot .hint { font-size: 14px; color: var(--ink); }
+/* segmented controls: outlined, selected = inverted */
+:root[data-hivis] .seg { background: var(--card); border: 2px solid var(--ink); }
+:root[data-hivis] .seg button { color: var(--ink); background: transparent; }
+:root[data-hivis] .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); outline: none; box-shadow: none; }
+:root[data-hivis] .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+/* clamp block fill: matches the border color normally, a mid grey in high contrast */
+:root { --block: var(--line); }
+:root[data-hivis] { --block: #9a9a9a; }

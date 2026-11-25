@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.0 — 2026-11-25
+
+- New **Display** section in settings with two toggles:
+  - **Easy Reading Mode:** switches the whole app, diagrams included, to Atkinson Hyperlegible, a font designed so every letter and number looks distinct. It's built into the app and works offline.
+  - **High-visibility layout:**
+    - Huge miter and bevel numbers, each on its own row, with the direction in large bold letters beside it.
+    - Pure black-and-white high contrast with thicker lines, in light or dark.
+    - Bigger buttons, inputs and tap targets.
+    - Each card shows just the numbers, the setup and which piece to keep. Steps, a smaller and simpler saw picture and the safety note fold away under "Steps & picture", and extra notes collect under "More notes".
+- Both settings are remembered on your phone and apply before the page draws, so it doesn't flicker.
+
 ## v1.3.0 — 2026-11-25
 
 - When your saw can't make a cut (past its miter or bevel limit, or the blade would need to tilt the way it can't), the card now shows a setup that works instead of a warning:

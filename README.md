@@ -15,6 +15,13 @@ A phone calculator for miter saw settings: crown molding, baseboard, compound (t
 
 For each piece it shows the miter and bevel, which way to swing and tilt, which edge goes against the fence, which side of the blade to keep, and a top-view picture of the cut. Under the gear icon you set whether your blade tilts left, right or both ways, and your saw's maximum miter and bevel; when a cut is past those limits, the app switches to a setup that works: first another normal fence setup (nested instead of flat, standing instead of flat), then a clamped setup with the board held against an angled block (45° by default) or square to the fence.
 
+## Display settings
+
+Under the gear icon:
+
+- **Easy Reading Mode** switches every bit of text, including the diagrams, to Atkinson Hyperlegible, a font from the Braille Institute where every letter and number looks distinct. The font is included in the app (`fonts/`, SIL Open Font License), so it works offline.
+- **High-visibility layout** gives each number its own full-width row in very large type, with the direction beside it. It also switches to pure black-and-white high contrast (light or dark, following the phone) and enlarges buttons and inputs. Each card leads with the setup and which piece to keep; the steps, a smaller saw picture and the safety note fold away under "Steps & picture", and extra notes collect under "More notes".
+
 ## How the math works
 
 Every mode uses one 3D model (`js/geometry.js`):

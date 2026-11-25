@@ -45,8 +45,8 @@ export function roomDiagram(corner, W) {
   out.push(`<path d="${arc(cx, cy, 26, Math.min(a0, a1), Math.max(a0, a1))}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`);
   out.push(`<text x="${cx}" y="${inside ? cy + 46 : cy - 34}" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">${f1(W)}°</text>`);
   // viewer
-  out.push(`<text x="${cx}" y="146" text-anchor="middle" font-size="11" fill="var(--muted)">you, facing the corner</text>`);
-  out.push(`<path d="M${cx} 132 l0 -10 m-4 4 l4 -4 l4 4" fill="none" stroke="var(--muted)" stroke-width="1.5"/>`);
+  out.push(`<text class="minor" x="${cx}" y="146" text-anchor="middle" font-size="11" fill="var(--muted)">you, facing the corner</text>`);
+  out.push(`<path class="minor" d="M${cx} 132 l0 -10 m-4 4 l4 -4 l4 4" fill="none" stroke="var(--muted)" stroke-width="1.5"/>`);
   out.push('</svg>');
   return out.join('');
 }
@@ -120,7 +120,7 @@ export function sawClampDiagram(r, labels) {
     const x1 = s0[0], x2 = s0[0] + n[0] * 26;
     blockPts = [[x1, F], [x2, F], [x2, F - 92], [x1, F - 92]];
   }
-  out.push(`<path d="${path(blockPts)}" fill="var(--line)" stroke="var(--muted)" stroke-width="1.5"/>`);
+  out.push(`<path d="${path(blockPts)}" fill="var(--block)" stroke="var(--muted)" stroke-width="1.5"/>`);
 
   out.push(`<path d="${path(keepPoly)}" fill="var(--keep)" stroke="var(--keep-edge)" stroke-width="1.5"/>`);
   out.push(`<path d="${path(wastePoly)}" fill="var(--waste)"/><path d="${path(wastePoly)}" fill="url(#hatch2)"/>`);
@@ -202,7 +202,7 @@ export function frameDiagram(W, wL, wR) {
   out.push(`<path d="${arc(ix, iy, r, Math.min(a0, a1), Math.max(a0, a1))}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`);
   const lx = W > 180 ? ix + r + 6 : ix, ly = W > 180 ? iy + r + 4 : iy + r + 16;
   out.push(`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${W > 180 ? 'start' : 'middle'}" font-size="12" font-weight="700" fill="var(--ink)">${f1(W)}°</text>`);
-  out.push(`<text x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">opening — you face the corner from here</text>`);
+  out.push(`<text class="minor" x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">opening — you face the corner from here</text>`);
   out.push('</svg>');
   return out.join('');
 }
@@ -246,7 +246,7 @@ export function wallDiagram(joint, leftSlope, rightSlope) {
   };
   out.push(lab(bodies.left, zA, 'L', leftSlope));
   out.push(lab(bodies.right, zB, 'R', rightSlope));
-  out.push(`<text x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">the wall, seen from the room</text>`);
+  out.push(`<text class="minor" x="${VW / 2}" y="${VH - 4}" text-anchor="middle" font-size="11" fill="var(--muted)">the wall, seen from the room</text>`);
   out.push('</svg>');
   return out.join('');
 }
@@ -324,7 +324,7 @@ export function sawDiagram(r, labels) {
   const kx = keepLeft ? (x0 + Math.min(xb, xf)) / 2 : (x1 + Math.max(xb, xf)) / 2;
   const wx = keepLeft ? (x1 + Math.max(xb, xf)) / 2 : (x0 + Math.min(xb, xf)) / 2;
   out.push(`<text x="${kx.toFixed(1)}" y="${cy + 5}" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">KEEP</text>`);
-  out.push(`<text x="${wx.toFixed(1)}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--muted)">scrap</text>`);
+  out.push(`<text class="minor" x="${wx.toFixed(1)}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--muted)">scrap</text>`);
   out.push(`<text x="${keepLeft ? x0 + 6 : x1 - 6}" y="${yb + 12}" text-anchor="${keepLeft ? 'start' : 'end'}" font-size="10" fill="var(--ink)">▲ ${labels.fence}</text>`);
   out.push(`<text x="${keepLeft ? x0 + 6 : x1 - 6}" y="${yf - 5}" text-anchor="${keepLeft ? 'start' : 'end'}" font-size="10" fill="var(--ink)">▼ ${labels.front}</text>`);
   // blade line + handle
@@ -343,7 +343,7 @@ export function sawDiagram(r, labels) {
   out.push(`<line x1="${gx}" y1="${gy}" x2="${(gx - gl * Math.sin(B)).toFixed(1)}" y2="${(gy - gl * Math.cos(B)).toFixed(1)}" stroke="var(--blade)" stroke-width="4" stroke-linecap="round"/>`);
   const bdir = Math.abs(r.bevel) < 0.05 ? 'blade straight up (0° bevel)' : `blade tilted ${r.bevel > 0 ? 'LEFT' : 'RIGHT'} ${f1(Math.abs(r.bevel))}°`;
   out.push(`<text x="${gx + 34}" y="${gy - 6}" font-size="11" font-weight="700" fill="var(--blade)">${bdir}</text>`);
-  out.push(`<text x="${gx + 34}" y="${gy - 20}" font-size="9" fill="var(--muted)">viewed from the front</text>`);
+  out.push(`<text class="minor" x="${gx + 34}" y="${gy - 20}" font-size="9" fill="var(--muted)">viewed from the front</text>`);
   out.push('</svg>');
   return out.join('');
 }

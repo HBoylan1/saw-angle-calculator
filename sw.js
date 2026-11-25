@@ -1,9 +1,10 @@
 // Offline support. Bump CACHE when shipping a new version so phones pick it up.
-const CACHE = 'saw-angles-v1.3.0';
+const CACHE = 'saw-angles-v1.4.0';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/app.js', 'js/geometry.js', 'js/diagrams.js', 'js/version.js',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
+  'fonts/atkinson-hyperlegible-400.woff2', 'fonts/atkinson-hyperlegible-700.woff2',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
